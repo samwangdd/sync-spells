@@ -78,4 +78,27 @@ describe('backup utility', () => {
     expect(backedUpFile.startsWith(path.join(tempHome, '.sync-spells', 'backups'))).toBe(true);
     expect(existsSync(backedUpFile)).toBe(true);
   });
+
+  test('backupPath keeps same-basename backups distinct within the same timestamp', async () => {
+    const { backupPath } = loadBackupModule(tempHome);
+    const firstSource = path.join(tempHome, 'first', 'shared.txt');
+    const secondSource = path.join(tempHome, 'second', 'shared.txt');
+
+    require('fs').mkdirSync(path.dirname(firstSource), { recursive: true });
+    require('fs').mkdirSync(path.dirname(secondSource), { recursive: true });
+    writeFileSync(firstSource, 'first-content', 'utf8');
+    writeFileSync(secondSource, 'second-content', 'utf8');
+
+    const firstBackup = await backupPath(firstSource);
+    const secondBackup = await backupPath(secondSource);
+
+    expect(firstBackup).toBe(
+      path.join(tempHome, '.sync-spells', 'backups', '2026-04-04T03-04-05', 'shared.txt'),
+    );
+    expect(secondBackup).toBe(
+      path.join(tempHome, '.sync-spells', 'backups', '2026-04-04T03-04-05', 'shared-1.txt'),
+    );
+    expect(readFileSync(firstBackup, 'utf8')).toBe('first-content');
+    expect(readFileSync(secondBackup, 'utf8')).toBe('second-content');
+  });
 });
