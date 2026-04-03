@@ -53,6 +53,16 @@ describe('config module', () => {
     await expect(readConfig()).resolves.toEqual(savedConfig);
   });
 
+  test('readConfig falls back to defaultConfig for malformed parseable JSON', async () => {
+    const { defaultConfig, readConfig, getConfigPath } = loadConfigModule();
+
+    const configPath = getConfigPath();
+    await mkdir(path.dirname(configPath), { recursive: true });
+    await writeFile(configPath, JSON.stringify({}, null, 2), 'utf8');
+
+    await expect(readConfig()).resolves.toEqual(defaultConfig);
+  });
+
   test('writeConfig writes config to disk and it can be read back', async () => {
     const { readConfig, writeConfig } = loadConfigModule();
     const config = {

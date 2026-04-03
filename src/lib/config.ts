@@ -18,6 +18,42 @@ export interface Config {
   tools: Record<string, ToolConfig>;
 }
 
+const isToolMapping = (value: unknown): value is ToolMapping => {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const mapping = value as Partial<ToolMapping>;
+  return typeof mapping.from === 'string' && typeof mapping.to === 'string';
+};
+
+const isToolConfig = (value: unknown): value is ToolConfig => {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const config = value as Partial<ToolConfig>;
+  return (
+    typeof config.enabled === 'boolean' &&
+    typeof config.configPath === 'string' &&
+    Array.isArray(config.mappings) &&
+    config.mappings.every(isToolMapping)
+  );
+};
+
+const isConfig = (value: unknown): value is Config => {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const config = value as Partial<Config>;
+  if (typeof config.source !== 'string' || typeof config.tools !== 'object' || config.tools === null) {
+    return false;
+  }
+
+  return Object.values(config.tools).every(isToolConfig);
+};
+
 export const configDir = (): string => path.join(os.homedir(), '.sync-spells');
 
 export const CONFIG_PATH = path.join(configDir(), 'config.json');
@@ -56,7 +92,8 @@ export const expandHome = (filePath: string): string => {
 export const readConfig = async (): Promise<Config> => {
   try {
     const raw = await fs.readFile(getConfigPath(), 'utf8');
-    return JSON.parse(raw) as Config;
+    const parsed: unknown = JSON.parse(raw);
+    return isConfig(parsed) ? parsed : JSON.parse(JSON.stringify(defaultConfig));
   } catch {
     return JSON.parse(JSON.stringify(defaultConfig)) as Config;
   }
