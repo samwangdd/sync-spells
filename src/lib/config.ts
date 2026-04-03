@@ -47,7 +47,12 @@ const isConfig = (value: unknown): value is Config => {
   }
 
   const config = value as Partial<Config>;
-  if (typeof config.source !== 'string' || typeof config.tools !== 'object' || config.tools === null) {
+  if (
+    typeof config.source !== 'string' ||
+    typeof config.tools !== 'object' ||
+    config.tools === null ||
+    Array.isArray(config.tools)
+  ) {
     return false;
   }
 
