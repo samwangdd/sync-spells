@@ -1,6 +1,4 @@
 import * as fs from 'fs/promises';
-import * as path from 'path';
-
 export type SymlinkState = 'linked' | 'missing' | 'broken' | 'real-dir' | 'wrong-target';
 
 export const checkSymlinkState = async (
@@ -27,16 +25,13 @@ export const checkSymlinkState = async (
     return 'broken';
   }
 
-  const resolvedActualTarget = path.resolve(path.dirname(destPath), actualTarget);
-  const resolvedExpectedTarget = path.resolve(expectedTarget);
-
   try {
-    await fs.stat(resolvedActualTarget);
+    await fs.stat(actualTarget);
   } catch {
     return 'broken';
   }
 
-  return resolvedActualTarget === resolvedExpectedTarget ? 'linked' : 'wrong-target';
+  return actualTarget === expectedTarget ? 'linked' : 'wrong-target';
 };
 
 export const createSymlink = async (src: string, dest: string): Promise<void> => {
