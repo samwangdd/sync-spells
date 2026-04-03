@@ -41,6 +41,18 @@ describe('symlink utilities', () => {
     await expect(checkSymlinkState(linkPath, targetFile)).resolves.toBe('linked');
   });
 
+  test('checkSymlinkState returns linked for a relative symlink target', async () => {
+    const { checkSymlinkState, createSymlink } = loadSymlinkModule();
+    const targetFile = path.join(tempHome, 'relative-target.txt');
+    const linkPath = path.join(tempHome, 'relative-link.txt');
+    const relativeTarget = 'relative-target.txt';
+
+    writeFileSync(targetFile, 'ok', 'utf8');
+    await createSymlink(relativeTarget, linkPath);
+
+    await expect(checkSymlinkState(linkPath, relativeTarget)).resolves.toBe('linked');
+  });
+
   test('checkSymlinkState returns broken for a symlink to a missing target', async () => {
     const { checkSymlinkState, createSymlink } = loadSymlinkModule();
     const targetFile = path.join(tempHome, 'missing-target.txt');

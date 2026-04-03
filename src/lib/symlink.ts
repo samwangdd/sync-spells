@@ -26,7 +26,7 @@ export const checkSymlinkState = async (
   }
 
   try {
-    await fs.stat(actualTarget);
+    await fs.stat(destPath);
   } catch {
     return 'broken';
   }
