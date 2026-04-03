@@ -1,0 +1,36 @@
+{
+  "name": "sync-spells",
+  "version": "1.0.0",
+  "description": "Unified management of AI agent spells across Claude Code, Cursor, Codex and more",
+  "bin": {
+    "spells": "bin/spells.js"
+  },
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "dev": "ts-node src/index.ts"
+  },
+  "keywords": [
+    "claude-code",
+    "cursor",
+    "ai",
+    "cli",
+    "commands",
+    "skills"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@inquirer/prompts": "^8.3.2",
+    "commander": "^14.0.3"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.5.2",
+    "jest": "^30.3.0",
+    "ts-jest": "^29.4.9",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.2"
+  },
+  "author": ""
+}
