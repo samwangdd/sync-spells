@@ -101,4 +101,23 @@ describe('backup utility', () => {
     expect(readFileSync(firstBackup, 'utf8')).toBe('first-content');
     expect(readFileSync(secondBackup, 'utf8')).toBe('second-content');
   });
+
+  test('backupPath returns distinct paths for concurrent same-basename backups', async () => {
+    const { backupPath } = loadBackupModule(tempHome);
+    const firstSource = path.join(tempHome, 'concurrent-a', 'shared.txt');
+    const secondSource = path.join(tempHome, 'concurrent-b', 'shared.txt');
+
+    require('fs').mkdirSync(path.dirname(firstSource), { recursive: true });
+    require('fs').mkdirSync(path.dirname(secondSource), { recursive: true });
+    writeFileSync(firstSource, 'alpha', 'utf8');
+    writeFileSync(secondSource, 'beta', 'utf8');
+
+    const [firstBackup, secondBackup] = await Promise.all([backupPath(firstSource), backupPath(secondSource)]);
+
+    expect(new Set([firstBackup, secondBackup]).size).toBe(2);
+    expect(firstBackup).toContain(path.join(tempHome, '.sync-spells', 'backups', '2026-04-04T03-04-05'));
+    expect(secondBackup).toContain(path.join(tempHome, '.sync-spells', 'backups', '2026-04-04T03-04-05'));
+    expect(readFileSync(firstBackup, 'utf8')).toBe('alpha');
+    expect(readFileSync(secondBackup, 'utf8')).toBe('beta');
+  });
 });
