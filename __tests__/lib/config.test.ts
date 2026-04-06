@@ -105,4 +105,82 @@ describe('config module', () => {
 
     await expect(readConfig()).resolves.toEqual(config);
   });
+
+  test('expandHome expands ~/ to home directory', () => {
+    const { expandHome } = loadConfigModule();
+    const result = expandHome('~/documents/spells');
+    expect(result).toBe(path.join(tempHome, 'documents/spells'));
+  });
+
+  test('expandHome returns unchanged path when it does not start with ~/', () => {
+    const { expandHome } = loadConfigModule();
+    const absPath = '/absolute/path/spells';
+    const result = expandHome(absPath);
+    expect(result).toBe(absPath);
+  });
+
+  test('configDir returns path under homedir', () => {
+    const { configDir } = loadConfigModule();
+    expect(configDir()).toBe(path.join(tempHome, '.sync-spells'));
+  });
+
+  test('readConfig falls back to defaultConfig for invalid tool mapping', async () => {
+    const { defaultConfig, readConfig, getConfigPath } = loadConfigModule();
+
+    const configPath = getConfigPath();
+    await mkdir(path.dirname(configPath), { recursive: true });
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        source: 'test',
+        tools: {
+          'bad-tool': {
+            enabled: true,
+            configPath: '~/.bad',
+            mappings: [{ from: 123, to: 'commands' }], // from is not a string
+          },
+        },
+      }, null, 2),
+      'utf8',
+    );
+
+    await expect(readConfig()).resolves.toEqual(defaultConfig);
+  });
+
+  test('readConfig falls back to defaultConfig for tool config missing enabled', async () => {
+    const { defaultConfig, readConfig, getConfigPath } = loadConfigModule();
+
+    const configPath = getConfigPath();
+    await mkdir(path.dirname(configPath), { recursive: true });
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        source: 'test',
+        tools: {
+          'incomplete': {
+            configPath: '~/.test',
+            mappings: [{ from: 'a', to: 'b' }],
+            // missing 'enabled' field
+          },
+        },
+      }, null, 2),
+      'utf8',
+    );
+
+    await expect(readConfig()).resolves.toEqual(defaultConfig);
+  });
+
+  test('readConfig falls back to defaultConfig for tools being null', async () => {
+    const { defaultConfig, readConfig, getConfigPath } = loadConfigModule();
+
+    const configPath = getConfigPath();
+    await mkdir(path.dirname(configPath), { recursive: true });
+    await writeFile(
+      configPath,
+      JSON.stringify({ source: 'test', tools: null }, null, 2),
+      'utf8',
+    );
+
+    await expect(readConfig()).resolves.toEqual(defaultConfig);
+  });
 });

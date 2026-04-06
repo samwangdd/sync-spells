@@ -96,4 +96,12 @@ describe('symlink utilities', () => {
     await removeSymlink(linkPath);
     await expect(checkSymlinkState(linkPath, targetFile)).resolves.toBe('missing');
   });
+
+  test('checkSymlinkState returns real-dir for a real file (not symlink)', async () => {
+    const { checkSymlinkState } = loadSymlinkModule();
+    const realFile = path.join(tempHome, 'real-file.txt');
+    writeFileSync(realFile, 'content', 'utf8');
+
+    await expect(checkSymlinkState(realFile, '/target')).resolves.toBe('real-dir');
+  });
 });
