@@ -61,6 +61,39 @@ spells status
 
 Shows the symlink status of every mapping for each tool.
 
+## Profile System
+
+SyncSpells supports Profile-based skill management. Profiles define which skills to activate for different projects.
+
+### Commands
+
+- `spells profiles [list|show]` - Manage profiles
+- `spells use [--profile <name>]` - Activate profile in current project
+- `spells materialize <profile>` - Generate active skills from profile
+- `spells skill add <path>` - Add skill to registry
+- `spells skill new <name>` - Create new skill
+- `spells skill list [--category]` - List registry skills
+- `spells doctor` - Health check
+- `spells config [get|set]` - Configuration management
+
+### Quick Start
+
+1. Initialize:
+   ```bash
+   spells setup
+   ```
+
+2. Use in project:
+   ```bash
+   cd /path/to/project
+   spells use
+   ```
+
+3. Check health:
+   ```bash
+   spells doctor
+   ```
+
 ## Local Development
 
 ```bash
