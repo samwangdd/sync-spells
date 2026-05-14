@@ -8,6 +8,7 @@ import { registerUse } from './commands/use';
 import { registerSkill } from './commands/skill';
 import { registerMaterialize } from './commands/materialize';
 import { registerDoctor } from './commands/doctor';
+import { registerConfig } from './commands/config';
 import { readConfig } from './lib/config';
 
 const program = new Command();
@@ -26,5 +27,6 @@ registerUse(program, readConfig);
 registerSkill(program, readConfig);
 registerMaterialize(program, readConfig);
 registerDoctor(program, readConfig);
+registerConfig(program);
 
 program.parse(process.argv);
