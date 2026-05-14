@@ -16,6 +16,9 @@ export interface ToolConfig {
 export interface Config {
   source: string;
   tools: Record<string, ToolConfig>;
+  defaultProfile?: string;
+  profilesDir?: string;
+  activeDir?: string;
 }
 
 const isToolMapping = (value: unknown): value is ToolMapping => {

@@ -183,4 +183,92 @@ describe('config module', () => {
 
     await expect(readConfig()).resolves.toEqual(defaultConfig);
   });
+
+  // --- Profile-related field tests ---
+
+  test('readConfig reads config with profile fields from disk', async () => {
+    const { readConfig, getConfigPath } = loadConfigModule();
+    const configWithProfiles = {
+      source: 'disk',
+      tools: {
+        'claude-code': {
+          enabled: true,
+          configPath: '~/.claude',
+          mappings: [{ from: 'commands', to: 'commands' }],
+        },
+      },
+      defaultProfile: 'work',
+      profilesDir: '~/.sync-spells/profiles',
+      activeDir: '~/.sync-spells/active',
+    };
+
+    const configPath = getConfigPath();
+    await mkdir(path.dirname(configPath), { recursive: true });
+    await writeFile(configPath, JSON.stringify(configWithProfiles, null, 2), 'utf8');
+
+    await expect(readConfig()).resolves.toEqual(configWithProfiles);
+  });
+
+  test('writeConfig writes config with profile fields and it can be read back', async () => {
+    const { readConfig, writeConfig } = loadConfigModule();
+    const configWithProfiles = {
+      source: 'roundtrip-profiles',
+      tools: {
+        cursor: {
+          enabled: true,
+          configPath: '~/.cursor',
+          mappings: [{ from: 'commands', to: 'commands' }],
+        },
+      },
+      defaultProfile: 'personal',
+      profilesDir: '~/.sync-spells/profiles',
+      activeDir: '~/.sync-spells/active',
+    };
+
+    await writeConfig(configWithProfiles);
+    await expect(readConfig()).resolves.toEqual(configWithProfiles);
+  });
+
+  test('readConfig accepts config without profile fields (backward compatible)', async () => {
+    const { readConfig, getConfigPath } = loadConfigModule();
+    // Simulate an old config that has no profile fields
+    const legacyConfig = {
+      source: 'legacy',
+      tools: {
+        'claude-code': {
+          enabled: true,
+          configPath: '~/.claude',
+          mappings: [{ from: 'commands', to: 'commands' }],
+        },
+      },
+    };
+
+    const configPath = getConfigPath();
+    await mkdir(path.dirname(configPath), { recursive: true });
+    await writeFile(configPath, JSON.stringify(legacyConfig, null, 2), 'utf8');
+
+    await expect(readConfig()).resolves.toEqual(legacyConfig);
+  });
+
+  test('readConfig accepts config with only some profile fields', async () => {
+    const { readConfig, getConfigPath } = loadConfigModule();
+    const partialConfig = {
+      source: 'partial',
+      tools: {
+        'claude-code': {
+          enabled: true,
+          configPath: '~/.claude',
+          mappings: [{ from: 'commands', to: 'commands' }],
+        },
+      },
+      defaultProfile: 'work',
+      // profilesDir and activeDir are omitted
+    };
+
+    const configPath = getConfigPath();
+    await mkdir(path.dirname(configPath), { recursive: true });
+    await writeFile(configPath, JSON.stringify(partialConfig, null, 2), 'utf8');
+
+    await expect(readConfig()).resolves.toEqual(partialConfig);
+  });
 });
