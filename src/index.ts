@@ -7,6 +7,7 @@ import { registerProfiles } from './commands/profiles';
 import { registerUse } from './commands/use';
 import { registerSkill } from './commands/skill';
 import { registerMaterialize } from './commands/materialize';
+import { registerDoctor } from './commands/doctor';
 import { readConfig } from './lib/config';
 
 const program = new Command();
@@ -23,5 +24,7 @@ registerStatus(program);
 registerProfiles(program, readConfig);
 registerUse(program, readConfig);
 registerSkill(program, readConfig);
+registerMaterialize(program, readConfig);
+registerDoctor(program, readConfig);
 
 program.parse(process.argv);
