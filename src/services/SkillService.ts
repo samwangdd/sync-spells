@@ -3,6 +3,14 @@ import * as path from 'path';
 import { Config } from '../lib/config';
 import { SkillInfo, SkillCategory } from '../types';
 
+const ensureWithin = (base: string, ...segments: string[]): string => {
+  const resolved = path.resolve(base, ...segments);
+  if (!resolved.startsWith(path.resolve(base) + path.sep) && resolved !== path.resolve(base)) {
+    throw new Error(`Path traversal detected: ${segments.join('/')}`);
+  }
+  return resolved;
+};
+
 export class SkillService {
   constructor(private config: Config) {}
 
@@ -62,7 +70,7 @@ export class SkillService {
   }
 
   async addSkill(sourcePath: string, targetPath: string): Promise<void> {
-    const targetFullPath = path.join(this.config.source, targetPath);
+    const targetFullPath = ensureWithin(this.config.source, targetPath);
 
     await fs.mkdir(targetFullPath, { recursive: true });
 
@@ -83,7 +91,7 @@ export class SkillService {
   }
 
   async createSkill(name: string, category: SkillCategory): Promise<string> {
-    const skillPath = path.join(this.config.source, category, name);
+    const skillPath = ensureWithin(this.config.source, category, name);
 
     await fs.mkdir(skillPath, { recursive: true });
 

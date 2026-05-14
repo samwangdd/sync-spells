@@ -2,7 +2,16 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { ProjectActivationResult, InferenceRule } from '../types';
 import { Config } from '../lib/config';
+import { ProfileNotFoundError } from '../lib/errors';
 import { ProfileService } from './ProfileService';
+
+const ensureWithin = (base: string, ...segments: string[]): string => {
+  const resolved = path.resolve(base, ...segments);
+  if (!resolved.startsWith(path.resolve(base) + path.sep) && resolved !== path.resolve(base)) {
+    throw new Error(`Path traversal detected: ${segments.join('/')}`);
+  }
+  return resolved;
+};
 
 const DEFAULT_INFERENCE_RULES: InferenceRule[] = [
   { pattern: /Mexc/i, profile: 'mexc-code' },
@@ -37,12 +46,12 @@ export class ProjectService {
     const profile = await this.profileSvc.getProfile(profileName);
 
     if (!profile) {
-      throw new Error(`Profile not found: ${profileName}`);
+      throw new ProfileNotFoundError(profileName);
     }
 
     const activeDir = this.config.activeDir ||
       path.join(this.config.source, 'active-skills');
-    const profileActiveDir = path.join(activeDir, profileName);
+    const profileActiveDir = ensureWithin(activeDir, profileName);
 
     const skills: ProjectActivationResult['skills'] = [];
 

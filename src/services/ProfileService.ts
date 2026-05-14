@@ -1,7 +1,14 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { Config } from '../lib/config';
+import { ProfileNotFoundError } from '../lib/errors';
 import { Profile, ValidationResult } from '../types';
+
+const isProfile = (value: unknown): value is Profile => {
+  if (typeof value !== 'object' || value === null) return false;
+  const obj = value as Partial<Profile>;
+  return typeof obj.name === 'string' && Array.isArray(obj.skills);
+};
 
 export class ProfileService {
   constructor(private config: Config) {}
@@ -23,8 +30,9 @@ export class ProfileService {
     for (const file of jsonFiles) {
       const filePath = path.join(profilesDir, file);
       const content = await fs.readFile(filePath, 'utf8');
-      const profile = JSON.parse(content) as Profile;
-      profiles.push(profile);
+      const parsed: unknown = JSON.parse(content);
+      if (!isProfile(parsed)) continue;
+      profiles.push(parsed);
     }
 
     return profiles;
@@ -70,7 +78,7 @@ export class ProfileService {
     const profile = await this.getProfile(defaultName);
 
     if (!profile) {
-      throw new Error(`Default profile '${defaultName}' not found`);
+      throw new ProfileNotFoundError(defaultName);
     }
 
     return profile;

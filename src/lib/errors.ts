@@ -42,7 +42,7 @@ export class SkillNotFoundError extends SyncSpellsError {
            `   Required by profile: ${this.profileName}\n\n` +
            `💡 Suggestion:\n` +
            `   1. Add the skill to registry: spells skill new ${this.skillPath}\n` +
-           `   2. Or remove from profile: spells profiles edit ${this.profileName}\n`;
+           `   2. Edit the profile JSON file directly to remove this skill\n`;
   }
 }
 

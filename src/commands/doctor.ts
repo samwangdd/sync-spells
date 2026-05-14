@@ -65,9 +65,8 @@ export const runDoctor = async (config: Config): Promise<DoctorResult[]> => {
 export const registerDoctor = (program: Command, getConfig: () => Promise<Config>): void => {
   program
     .command('doctor')
-    .option('--fix', 'Attempt to auto-fix issues')
     .description('Run health check on SyncSpells installation')
-    .action(async (options: { fix?: boolean }) => {
+    .action(async () => {
       const config = await getConfig();
 
       console.log('\nChecking SyncSpells installation...\n');

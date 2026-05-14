@@ -73,7 +73,7 @@ describe('Error Classes', () => {
       expect(formatted).toContain('my-skill');
       expect(formatted).toContain('my-profile');
       expect(formatted).toContain('spells skill new');
-      expect(formatted).toContain('spells profiles edit');
+      expect(formatted).toContain('Edit the profile JSON file directly');
     });
   });
 
