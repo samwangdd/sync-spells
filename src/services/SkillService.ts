@@ -61,6 +61,51 @@ export class SkillService {
     }
   }
 
+  async addSkill(sourcePath: string, targetPath: string): Promise<void> {
+    const targetFullPath = path.join(this.config.source, targetPath);
+
+    await fs.mkdir(targetFullPath, { recursive: true });
+
+    const files = await fs.readdir(sourcePath);
+
+    for (const file of files) {
+      const srcFile = path.join(sourcePath, file);
+      const destFile = path.join(targetFullPath, file);
+
+      const stat = await fs.stat(srcFile);
+
+      if (stat.isDirectory()) {
+        await this.addSkill(srcFile, path.join(targetPath, file));
+      } else if (file !== 'SKILL.md' || !(await this.fileExists(destFile))) {
+        await fs.copyFile(srcFile, destFile);
+      }
+    }
+  }
+
+  async createSkill(name: string, category: SkillCategory): Promise<string> {
+    const skillPath = path.join(this.config.source, category, name);
+
+    await fs.mkdir(skillPath, { recursive: true });
+
+    const skillMdPath = path.join(skillPath, 'SKILL.md');
+
+    if (!(await this.fileExists(skillMdPath))) {
+      const template = `# ${name}\n\n<!-- Add your skill content here -->\n`;
+      await fs.writeFile(skillMdPath, template, 'utf8');
+    }
+
+    return skillPath;
+  }
+
+  private async fileExists(filePath: string): Promise<boolean> {
+    try {
+      await fs.access(filePath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async validateSkillPath(skillPath: string): Promise<boolean> {
     const fullPath = path.join(this.config.source, skillPath);
     try {
