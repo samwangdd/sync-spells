@@ -53,12 +53,12 @@ export class SkillService {
   }
 
   private async listCategories(registryDir: string): Promise<SkillCategory[]> {
-    const preferred = ['global', 'coding', 'code', 'liveos', 'lifeos', 'inbox'];
+    const preferred = ['global', 'coding', 'collaboration', 'workflow', 'external', 'inbox'];
     const entries = await fs.readdir(registryDir, { withFileTypes: true }).catch(() => []);
     const found = entries
       .filter(entry => entry.isDirectory())
       .map(entry => entry.name)
-      .filter(name => !name.startsWith('.') && name !== 'active-skills');
+      .filter(name => !name.startsWith('.'));
 
     const ordered = preferred.filter(name => found.includes(name));
     const rest = found.filter(name => !preferred.includes(name)).sort();
