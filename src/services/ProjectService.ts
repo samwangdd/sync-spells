@@ -1,17 +1,9 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { ProjectActivationResult, InferenceRule } from '../types';
-import { Config, resolveActiveSkillsDir } from '../lib/config';
+import { Config } from '../lib/config';
 import { ProfileNotFoundError } from '../lib/errors';
 import { ProfileService } from './ProfileService';
-
-const ensureWithin = (base: string, ...segments: string[]): string => {
-  const resolved = path.resolve(base, ...segments);
-  if (!resolved.startsWith(path.resolve(base) + path.sep) && resolved !== path.resolve(base)) {
-    throw new Error(`Path traversal detected: ${segments.join('/')}`);
-  }
-  return resolved;
-};
 
 const DEFAULT_INFERENCE_RULES: InferenceRule[] = [
   { pattern: /Mexc/i, profile: 'mexc-code' },
@@ -49,9 +41,6 @@ export class ProjectService {
       throw new ProfileNotFoundError(profileName);
     }
 
-    const activeDir = resolveActiveSkillsDir(this.config);
-    const profileActiveDir = ensureWithin(activeDir, profileName);
-
     const skills: ProjectActivationResult['skills'] = [];
 
     for (const tool of ['.claude', '.codex']) {
@@ -59,29 +48,20 @@ export class ProjectService {
 
       for (const skillPath of profile.skills) {
         const skillName = path.basename(skillPath);
-        const sourceLink = path.join(profileActiveDir, skillName);
+        const sourceLink = path.join(this.config.source, skillPath);
         const targetLink = path.join(toolSkillsDir, skillName);
 
         try {
           await fs.mkdir(toolSkillsDir, { recursive: true });
-
-          try {
-            await fs.unlink(targetLink);
-          } catch {}
-
+          try { await fs.unlink(targetLink); } catch {}
           await fs.symlink(sourceLink, targetLink);
-
-          skills.push({
-            name: skillName,
-            targetPath: path.join(tool, 'skills', skillName),
-            status: 'linked'
-          });
+          skills.push({ name: skillName, targetPath: path.join(tool, 'skills', skillName), status: 'linked' });
         } catch (error) {
           skills.push({
             name: skillName,
             targetPath: path.join(tool, 'skills', skillName),
             status: 'error',
-            error: error instanceof Error ? error.message : String(error)
+            error: error instanceof Error ? error.message : String(error),
           });
         }
       }

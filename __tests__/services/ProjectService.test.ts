@@ -73,4 +73,24 @@ describe('ProjectService', () => {
     const activeProfile = await service.getActiveProfile(testDir);
     expect(activeProfile).toBeNull();
   });
+
+  it('activateProfile links project skills directly to registry (no active-skills hop)', async () => {
+    await fs.mkdir(path.join(testDir, 'global', 'git-commit'), { recursive: true });
+    await fs.writeFile(path.join(testDir, 'global', 'git-commit', 'SKILL.md'), '# x');
+    await fs.mkdir(path.join(testDir, 'profiles'), { recursive: true });
+    await fs.writeFile(
+      path.join(testDir, 'profiles', 'test.json'),
+      JSON.stringify({ name: 'test', skills: ['global/git-commit'] }),
+    );
+
+    const cfg: Config = { source: testDir, tools: {}, profilesDir: path.join(testDir, 'profiles') };
+    const svc = new ProjectService(cfg, new ProfileService(cfg));
+    const projectDir = path.join(testDir, 'proj');
+
+    await svc.activateProfile(projectDir, 'test');
+
+    const target = await fs.readlink(path.join(projectDir, '.claude', 'skills', 'git-commit'));
+    expect(target).toBe(path.join(testDir, 'global', 'git-commit'));
+    expect(target).not.toContain('active-skills');
+  });
 });
