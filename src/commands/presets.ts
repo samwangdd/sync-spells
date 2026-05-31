@@ -40,8 +40,8 @@ export const registerPresets = (program: Command, getConfig: () => Promise<Confi
         console.log(`Description: ${preset.description}`);
       }
 
-      console.log(`\nSkills (${preset.skills.length}):`);
-      for (const skill of preset.skills) {
+      console.log(`\nSkills (${(preset.skills || []).length}):`);
+      for (const skill of (preset.skills || [])) {
         const isWarn = validation?.warnings?.some(w => w.includes(skill));
         const icon = isWarn ? 'x' : '-';
         const warning = isWarn ? '  [WARN: Skill path does not exist]' : '';

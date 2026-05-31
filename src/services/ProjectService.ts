@@ -46,7 +46,7 @@ export class ProjectService {
     for (const tool of ['.claude', '.codex']) {
       const toolSkillsDir = path.join(projectPath, tool, 'skills');
 
-      for (const skillPath of profile.skills) {
+      for (const skillPath of (profile.skills || [])) {
         const skillName = path.basename(skillPath);
         const sourceLink = path.join(this.config.source, skillPath);
         const targetLink = path.join(toolSkillsDir, skillName);

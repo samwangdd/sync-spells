@@ -18,7 +18,7 @@ describe('Profile', () => {
 
     expect(profile.name).toBe('test-profile');
     expect(profile.skills).toHaveLength(2);
-    expect(profile.skills[0]).toBe('global/git-commit');
+    expect((profile.skills || [])[0]).toBe('global/git-commit');
   });
 
   it('should support optional extends field', () => {
@@ -107,5 +107,14 @@ describe('InferenceRule', () => {
 
     expect(rule.pattern.test('frontend-react')).toBe(true);
     expect(rule.profile).toBe('frontend');
+  });
+});
+
+describe('Profile categories/extras/extends', () => {
+  it('Profile supports categories/extras/extends and legacy skills', () => {
+    const p: Profile = { name: 'x', categories: ['coding'], extras: ['collaboration/lark-doc'], extends: null };
+    const legacy: Profile = { name: 'y', skills: ['global/git-commit'] };
+    expect(p.categories).toEqual(['coding']);
+    expect(legacy.skills).toEqual(['global/git-commit']);
   });
 });

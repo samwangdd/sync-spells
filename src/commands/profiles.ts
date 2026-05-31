@@ -51,8 +51,8 @@ export const registerProfiles = (program: Command, getConfig: () => Promise<Conf
         console.log(`Description: ${profile.description}`);
       }
 
-      console.log(`\nSkills (${profile.skills.length}):`);
-      for (const skill of profile.skills) {
+      console.log(`\nSkills (${(profile.skills || []).length}):`);
+      for (const skill of (profile.skills || [])) {
         const isWarn = validation?.warnings?.some(w => w.includes(skill));
         const icon = isWarn ? '✗' : '✓';
         const warning = isWarn ? '  [WARN: Skill path does not exist]' : '';

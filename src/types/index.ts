@@ -1,8 +1,10 @@
 export interface Profile {
   name: string;
   description?: string;
-  skills: string[];
-  extends?: string;
+  categories?: string[];
+  extras?: string[];
+  extends?: string | null;
+  skills?: string[];
 }
 
 export interface ValidationResult {
