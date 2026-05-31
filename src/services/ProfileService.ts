@@ -7,7 +7,9 @@ import { Profile, ValidationResult } from '../types';
 const isProfile = (value: unknown): value is Profile => {
   if (typeof value !== 'object' || value === null) return false;
   const obj = value as Partial<Profile>;
-  return typeof obj.name === 'string' && Array.isArray(obj.skills);
+  return typeof obj.name === 'string' &&
+    (Array.isArray(obj.skills) || Array.isArray((obj as { categories?: unknown }).categories) ||
+     Array.isArray((obj as { extras?: unknown }).extras) || obj.skills === undefined);
 };
 
 export class ProfileService {
