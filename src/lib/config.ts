@@ -70,20 +70,10 @@ export const CONFIG_PATH = path.join(configDir(), 'config.json');
 export const defaultConfig: Config = {
   source: '',
   tools: {
-    'claude-code': {
-      enabled: false,
-      configPath: '~/.claude',
-      mappings: [
-        { from: 'commands', to: 'commands' },
-        { from: 'skills', to: 'skills' },
-        { from: 'agents', to: 'agents' },
-      ],
-    },
-    cursor: {
-      enabled: false,
-      configPath: '~/.cursor',
-      mappings: [{ from: 'commands', to: 'commands' }],
-    },
+    'claude-code': { enabled: true, configPath: '~/.claude', mappings: [{ from: 'global', to: 'skills' }] },
+    'agents':      { enabled: true, configPath: '~/.agents', mappings: [{ from: 'global', to: 'skills' }] },
+    'codex':       { enabled: true, configPath: '~/.codex',  mappings: [{ from: 'global', to: 'skills' }] },
+    'cursor':      { enabled: true, configPath: '~/.cursor', mappings: [{ from: 'global', to: 'skills' }] },
   },
 };
 

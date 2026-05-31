@@ -272,6 +272,22 @@ describe('config module', () => {
     await expect(readConfig()).resolves.toEqual(partialConfig);
   });
 
+  test('defaultConfig has four tools each mapping global to skills', async () => {
+    const { defaultConfig } = loadConfigModule();
+    expect(Object.keys(defaultConfig.tools).sort()).toEqual(
+      ['agents', 'claude-code', 'codex', 'cursor'].sort(),
+    );
+    for (const key of Object.keys(defaultConfig.tools)) {
+      const tool = defaultConfig.tools[key];
+      expect(tool.enabled).toBe(true);
+      expect(tool.mappings).toEqual([{ from: 'global', to: 'skills' }]);
+    }
+    expect(defaultConfig.tools['claude-code'].configPath).toBe('~/.claude');
+    expect(defaultConfig.tools['agents'].configPath).toBe('~/.agents');
+    expect(defaultConfig.tools['codex'].configPath).toBe('~/.codex');
+    expect(defaultConfig.tools['cursor'].configPath).toBe('~/.cursor');
+  });
+
   test('resolveActiveSkillsDir prefers explicit activeDir', () => {
     const { resolveActiveSkillsDir } = loadConfigModule();
     const config = {
