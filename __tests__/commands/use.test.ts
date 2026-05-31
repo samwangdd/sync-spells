@@ -13,27 +13,38 @@ describe('use command', () => {
     testDir = `/tmp/test-use-${Date.now()}`;
     projectDir = `/tmp/test-project-${Date.now()}`;
 
-    // Setup registry
+    // Setup registry — global skill
     await fs.mkdir(path.join(testDir, 'global', 'git-commit'), { recursive: true });
     await fs.writeFile(
       path.join(testDir, 'global', 'git-commit', 'SKILL.md'),
       '# Git Commit'
     );
 
+    // Setup non-global skill for tests that need one
+    await fs.mkdir(path.join(testDir, 'coding', 'web-perf'), { recursive: true });
+    await fs.writeFile(
+      path.join(testDir, 'coding', 'web-perf', 'SKILL.md'),
+      '# Web Perf'
+    );
+
     // Setup profiles
     await fs.mkdir(path.join(testDir, 'profiles'), { recursive: true });
+
+    // 'test' profile: has global + non-global skill.
+    // After SP-2 resolve, only 'coding/web-perf' reaches project level (global is excluded).
     await fs.writeFile(
       path.join(testDir, 'profiles', 'test.json'),
       JSON.stringify({
         name: 'test',
-        skills: ['global/git-commit']
+        skills: ['global/git-commit', 'coding/web-perf']
       })
     );
+
     await fs.writeFile(
       path.join(testDir, 'profiles', 'mexc-code.json'),
       JSON.stringify({
         name: 'mexc-code',
-        skills: ['global/git-commit']
+        skills: ['global/git-commit', 'coding/web-perf']
       })
     );
 
@@ -56,6 +67,8 @@ describe('use command', () => {
     const result = await runUse(config, projectDir, 'test');
 
     expect(result.profile).toBe('test');
+    // After resolve, global/git-commit is excluded; only coding/web-perf is linked
+    // For both .claude and .codex tools → 2 entries total
     expect(result.skills.length).toBeGreaterThan(0);
 
     const linked = result.skills.filter(s => s.status === 'linked');
@@ -75,8 +88,22 @@ describe('use command', () => {
   it('links project skills directly to registry (no active-skills)', async () => {
     const result = await runUse(config, projectDir, 'test');
     expect(result.profile).toBe('test');
-    const target = await fs.readlink(path.join(projectDir, '.codex', 'skills', 'git-commit'));
-    expect(target).toBe(path.join(testDir, 'global', 'git-commit'));
+    // global/git-commit is filtered out by ResolveService; coding/web-perf is linked
+    const target = await fs.readlink(path.join(projectDir, '.codex', 'skills', 'web-perf'));
+    expect(target).toBe(path.join(testDir, 'coding', 'web-perf'));
     expect(target).not.toContain('active-skills');
+    // global skill must NOT be linked at project level
+    await expect(
+      fs.access(path.join(projectDir, '.codex', 'skills', 'git-commit'))
+    ).rejects.toBeTruthy();
+  });
+
+  it('use resolves a category profile and links to project (no global)', async () => {
+    await fs.writeFile(path.join(testDir, 'profiles', 'cat.json'),
+      JSON.stringify({ name: 'cat', categories: ['coding'] }));
+    const result = await runUse(config, projectDir, 'cat');
+    const target = await fs.readlink(path.join(projectDir, '.claude', 'skills', 'web-perf'));
+    expect(target).toBe(path.join(testDir, 'coding', 'web-perf'));
+    await expect(fs.access(path.join(projectDir, '.claude', 'skills', 'git-commit'))).rejects.toBeTruthy();
   });
 });

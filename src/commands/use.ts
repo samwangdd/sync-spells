@@ -2,6 +2,8 @@ import { Command } from 'commander';
 import { Config } from '../lib/config';
 import { ProfileService } from '../services/ProfileService';
 import { ProjectService } from '../services/ProjectService';
+import { SkillService } from '../services/SkillService';
+import { ResolveService } from '../services/ResolveService';
 
 export const runUse = async (
   config: Config,
@@ -10,12 +12,9 @@ export const runUse = async (
 ) => {
   const profileSvc = new ProfileService(config);
   const projectSvc = new ProjectService(config, profileSvc);
-
-  const finalProfile = profileName ||
-    projectSvc.inferProfile(projectPath) ||
-    'global-lite';
-
-  return await projectSvc.activateProfile(projectPath, finalProfile);
+  const finalProfile = profileName || projectSvc.inferProfile(projectPath) || 'global-lite';
+  const resolved = await new ResolveService(config, profileSvc, new SkillService(config)).resolve(finalProfile);
+  return await projectSvc.activateSkills(projectPath, finalProfile, resolved.skills);
 };
 
 export const registerUse = (program: Command, getConfig: () => Promise<Config>): void => {

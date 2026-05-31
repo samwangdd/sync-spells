@@ -84,6 +84,48 @@ export class ProjectService {
     };
   }
 
+  async activateSkills(
+    projectPath: string,
+    profileName: string,
+    skillPaths: string[]
+  ): Promise<ProjectActivationResult> {
+    const skills: ProjectActivationResult['skills'] = [];
+
+    for (const tool of ['.claude', '.codex']) {
+      const toolSkillsDir = path.join(projectPath, tool, 'skills');
+
+      for (const skillPath of skillPaths) {
+        const skillName = path.basename(skillPath);
+        const sourceLink = path.join(this.config.source, skillPath);
+        const targetLink = path.join(toolSkillsDir, skillName);
+
+        try {
+          await fs.mkdir(toolSkillsDir, { recursive: true });
+          try { await fs.unlink(targetLink); } catch {}
+          await fs.symlink(sourceLink, targetLink);
+          skills.push({ name: skillName, targetPath: path.join(tool, 'skills', skillName), status: 'linked' });
+        } catch (error) {
+          skills.push({
+            name: skillName,
+            targetPath: path.join(tool, 'skills', skillName),
+            status: 'error',
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+    }
+
+    try {
+      await fs.writeFile(
+        path.join(projectPath, '.sync-spells.json'),
+        JSON.stringify({ activePreset: profileName, activeProfile: profileName }, null, 2),
+        'utf8'
+      );
+    } catch {}
+
+    return { projectPath, profile: profileName, skills };
+  }
+
   async getActiveProfile(projectPath: string): Promise<string | null> {
     const stateFile = path.join(projectPath, '.sync-spells.json');
 
