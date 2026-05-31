@@ -1,7 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from '@jest/globals';
 import { ProfileService } from '../../src/services/ProfileService';
 import { SkillService } from '../../src/services/SkillService';
-import { MaterializeService } from '../../src/services/MaterializeService';
 import { ProjectService } from '../../src/services/ProjectService';
 import { runDoctor } from '../../src/commands/doctor';
 import { Config } from '../../src/lib/config';
@@ -70,7 +69,7 @@ describe('E2E Integration', () => {
     await fs.rm(projectDir, { recursive: true, force: true });
   });
 
-  it('should complete full workflow: skills -> profiles -> materialize -> activate -> doctor', async () => {
+  it('should complete full workflow: skills -> profiles -> activate -> doctor', async () => {
     // Step 1: List skills in registry
     const skillSvc = new SkillService(config);
     const skills = await skillSvc.listSkills();
@@ -87,20 +86,7 @@ describe('E2E Integration', () => {
     const validation = await profileSvc.validateProfile(profiles[0]);
     expect(validation.valid).toBe(true);
 
-    // Step 3: Materialize profile
-    const materializeSvc = new MaterializeService(config, profileSvc);
-    const materialized = await materializeSvc.materialize('mexc-code');
-    expect(materialized.profile).toBe('mexc-code');
-    expect(materialized.skills).toHaveLength(2);
-    expect(materialized.skills.every(s => s.status === 'created')).toBe(true);
-
-    // Verify symlinks exist
-    for (const skill of materialized.skills) {
-      const stat = await fs.lstat(skill.symlinkPath);
-      expect(stat.isSymbolicLink()).toBe(true);
-    }
-
-    // Step 4: Activate profile in project
+    // Step 3: Activate profile in project (direct registry link — no materialize step)
     const projectSvc = new ProjectService(config, profileSvc);
     const activated = await projectSvc.activateProfile(projectDir, 'mexc-code');
     expect(activated.profile).toBe('mexc-code');
@@ -109,11 +95,10 @@ describe('E2E Integration', () => {
     const linked = activated.skills.filter(s => s.status === 'linked');
     expect(linked.length).toBe(4); // 2 skills x 2 tools (.claude + .codex)
 
-    // Step 5: Run doctor
+    // Step 4: Run doctor
     const doctorResults = await runDoctor(config);
     expect(doctorResults.some(r => r.check === 'registry' && r.status === 'ok')).toBe(true);
     expect(doctorResults.some(r => r.check === 'profiles' && r.status === 'ok')).toBe(true);
-    expect(doctorResults.some(r => r.check === 'active' && r.status === 'ok')).toBe(true);
   });
 
   it('should infer profile from project path', () => {

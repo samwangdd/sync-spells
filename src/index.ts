@@ -7,7 +7,6 @@ import { registerProfiles } from './commands/profiles';
 import { registerPresets } from './commands/presets';
 import { registerUse } from './commands/use';
 import { registerSkill } from './commands/skill';
-import { registerMaterialize } from './commands/materialize';
 import { registerDoctor } from './commands/doctor';
 import { registerConfig } from './commands/config';
 import { readConfig } from './lib/config';
@@ -27,7 +26,6 @@ registerProfiles(program, readConfig);
 registerPresets(program, readConfig);
 registerUse(program, readConfig);
 registerSkill(program, readConfig);
-registerMaterialize(program, readConfig);
 registerDoctor(program, readConfig);
 registerConfig(program);
 
