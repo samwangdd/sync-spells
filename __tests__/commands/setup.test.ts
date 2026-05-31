@@ -53,14 +53,12 @@ describe('setup command', () => {
     expect(config.tools['claude-code'].enabled).toBe(true);
     expect(config.tools['claude-code'].configPath).toBe('~/.claude');
     expect(config.tools['claude-code'].mappings).toEqual([
-      { from: 'commands', to: 'commands' },
-      { from: 'skills', to: 'skills' },
-      { from: 'agents', to: 'agents' },
+      { from: 'global', to: 'skills' },
     ]);
     expect(config.tools['cursor'].enabled).toBe(true);
     expect(config.tools['cursor'].configPath).toBe('~/.cursor');
     expect(config.tools['cursor'].mappings).toEqual([
-      { from: 'commands', to: 'commands' },
+      { from: 'global', to: 'skills' },
     ]);
 
     // Config persisted to disk

@@ -3,7 +3,6 @@ import {
   Profile,
   ValidationResult,
   SkillInfo,
-  MaterializeResult,
   ProjectActivationResult,
   SkillCategory,
   InferenceRule,
@@ -68,42 +67,6 @@ describe('SkillInfo', () => {
 
     expect(skill.category).toBe('global');
     expect(skill.hasSkillMd).toBe(true);
-  });
-});
-
-describe('MaterializeResult', () => {
-  it('should represent materialization output', () => {
-    const result: MaterializeResult = {
-      profile: 'default',
-      generatedAt: '2026-05-15T00:00:00Z',
-      skills: [
-        {
-          path: '/skills/global/git-commit',
-          symlinkPath: '/target/git-commit',
-          status: 'created',
-        },
-      ],
-    };
-
-    expect(result.skills).toHaveLength(1);
-    expect(result.skills[0].status).toBe('created');
-  });
-
-  it('should support error status with message', () => {
-    const result: MaterializeResult = {
-      profile: 'default',
-      generatedAt: '2026-05-15T00:00:00Z',
-      skills: [
-        {
-          path: '/skills/global/broken',
-          symlinkPath: '/target/broken',
-          status: 'error',
-          error: 'Symlink failed',
-        },
-      ],
-    };
-
-    expect(result.skills[0].error).toBe('Symlink failed');
   });
 });
 

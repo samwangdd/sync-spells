@@ -18,17 +18,6 @@ export interface SkillInfo {
   hasSkillMd: boolean;
 }
 
-export interface MaterializeResult {
-  profile: string;
-  generatedAt: string;
-  skills: {
-    path: string;
-    symlinkPath: string;
-    status: 'created' | 'updated' | 'error';
-    error?: string;
-  }[];
-}
-
 export interface ProjectActivationResult {
   projectPath: string;
   profile: string;
