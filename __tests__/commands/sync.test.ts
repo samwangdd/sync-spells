@@ -162,6 +162,28 @@ describe('sync command', () => {
     ]);
   });
 
+  test('runSync re-links global to skills when target points at old active-skills', async () => {
+    const { runSync } = loadSyncModule(tempHome);
+    const sourceDir = path.join(tempHome, 'source');
+    const oldDir = path.join(tempHome, 'active-skills', 'global-lite');
+    const toolDir = path.join(tempHome, 'claude');
+    mkdirSync(path.join(sourceDir, 'global'), { recursive: true });
+    mkdirSync(oldDir, { recursive: true });
+    mkdirSync(toolDir, { recursive: true });
+    await fs.symlink(oldDir, path.join(toolDir, 'skills')); // wrong-target
+
+    writeTestConfig(tempHome, sourceDir, {
+      'claude-code': { enabled: true, configPath: toolDir, mappings: [{ from: 'global', to: 'skills' }] },
+    });
+
+    const results = await runSync();
+    expect(results).toEqual([
+      { tool: 'claude-code', from: 'global', to: 'skills', action: 're-linked' },
+    ]);
+    const target = await fs.readlink(path.join(toolDir, 'skills'));
+    expect(target).toBe(path.join(sourceDir, 'global'));
+  });
+
   test('runSync skips disabled tools', async () => {
     const { runSync } = loadSyncModule(tempHome);
     const sourceDir = path.join(tempHome, 'source');
