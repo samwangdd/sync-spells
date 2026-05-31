@@ -1,7 +1,6 @@
 import { Command } from 'commander';
 import { Config } from '../lib/config';
 import { ProfileService } from '../services/ProfileService';
-import { MaterializeService } from '../services/MaterializeService';
 import { ProjectService } from '../services/ProjectService';
 
 export const runUse = async (
@@ -10,18 +9,13 @@ export const runUse = async (
   profileName?: string
 ) => {
   const profileSvc = new ProfileService(config);
-  const materializeSvc = new MaterializeService(config, profileSvc);
   const projectSvc = new ProjectService(config, profileSvc);
 
   const finalProfile = profileName ||
     projectSvc.inferProfile(projectPath) ||
     'global-lite';
 
-  await materializeSvc.materialize(finalProfile);
-
-  const result = await projectSvc.activateProfile(projectPath, finalProfile);
-
-  return result;
+  return await projectSvc.activateProfile(projectPath, finalProfile);
 };
 
 export const registerUse = (program: Command, getConfig: () => Promise<Config>): void => {

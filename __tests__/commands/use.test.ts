@@ -44,7 +44,6 @@ describe('use command', () => {
       source: testDir,
       tools: {},
       profilesDir: path.join(testDir, 'profiles'),
-      activeDir: path.join(testDir, 'active-skills')
     };
   });
 
@@ -73,17 +72,11 @@ describe('use command', () => {
     expect(result.profile).toBe('mexc-code');
   });
 
-  it('should use default generated cache when activeDir is not configured', async () => {
-    const configWithoutActiveDir: Config = {
-      source: testDir,
-      tools: {},
-      profilesDir: path.join(testDir, 'profiles')
-    };
-
-    const result = await runUse(configWithoutActiveDir, projectDir, 'test');
-
+  it('links project skills directly to registry (no active-skills)', async () => {
+    const result = await runUse(config, projectDir, 'test');
     expect(result.profile).toBe('test');
     const target = await fs.readlink(path.join(projectDir, '.codex', 'skills', 'git-commit'));
-    expect(target).toContain(path.join('.sync-spells-cache', 'active-skills', 'test', 'git-commit'));
+    expect(target).toBe(path.join(testDir, 'global', 'git-commit'));
+    expect(target).not.toContain('active-skills');
   });
 });
