@@ -199,7 +199,6 @@ describe('config module', () => {
       },
       defaultProfile: 'work',
       profilesDir: '~/.sync-spells/profiles',
-      activeDir: '~/.sync-spells/active',
     };
 
     const configPath = getConfigPath();
@@ -222,7 +221,6 @@ describe('config module', () => {
       },
       defaultProfile: 'personal',
       profilesDir: '~/.sync-spells/profiles',
-      activeDir: '~/.sync-spells/active',
     };
 
     await writeConfig(configWithProfiles);
@@ -262,7 +260,7 @@ describe('config module', () => {
         },
       },
       defaultProfile: 'work',
-      // profilesDir and activeDir are omitted
+      // profilesDir is omitted
     };
 
     const configPath = getConfigPath();
@@ -286,40 +284,5 @@ describe('config module', () => {
     expect(defaultConfig.tools['agents'].configPath).toBe('~/.agents');
     expect(defaultConfig.tools['codex'].configPath).toBe('~/.codex');
     expect(defaultConfig.tools['cursor'].configPath).toBe('~/.cursor');
-  });
-
-  test('resolveActiveSkillsDir prefers explicit activeDir', () => {
-    const { resolveActiveSkillsDir } = loadConfigModule();
-    const config = {
-      source: '/registry',
-      tools: {},
-      activeDir: '/explicit-active',
-      cacheDir: '/cache',
-    };
-
-    expect(resolveActiveSkillsDir(config)).toBe('/explicit-active');
-  });
-
-  test('resolveActiveSkillsDir falls back to cacheDir active-skills', () => {
-    const { resolveActiveSkillsDir } = loadConfigModule();
-    const config = {
-      source: '/registry',
-      tools: {},
-      cacheDir: '/cache',
-    };
-
-    expect(resolveActiveSkillsDir(config)).toBe(path.join('/cache', 'active-skills'));
-  });
-
-  test('resolveActiveSkillsDir falls back to source cache active-skills', () => {
-    const { resolveActiveSkillsDir } = loadConfigModule();
-    const config = {
-      source: '/registry',
-      tools: {},
-    };
-
-    expect(resolveActiveSkillsDir(config)).toBe(
-      path.join('/registry', '.sync-spells-cache', 'active-skills'),
-    );
   });
 });

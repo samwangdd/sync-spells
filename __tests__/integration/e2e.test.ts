@@ -47,7 +47,6 @@ describe('E2E Integration', () => {
       source: testDir,
       tools: {},
       profilesDir: path.join(testDir, 'profiles'),
-      activeDir: path.join(testDir, 'active-skills')
     };
   });
 
@@ -60,7 +59,7 @@ describe('E2E Integration', () => {
       await fs.rm(path.join(projectDir, '.codex'), { recursive: true, force: true });
     } catch {}
     try {
-      await fs.rm(config.activeDir!, { recursive: true, force: true });
+      await fs.rm(path.join(testDir, 'active-skills'), { recursive: true, force: true });
     } catch {}
   });
 
