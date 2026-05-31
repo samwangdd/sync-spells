@@ -51,14 +51,6 @@ describe('doctor command', () => {
     expect(profilesCheck!.status).toBe('warn');
   });
 
-  it('should warn when no active skills', async () => {
-    const results = await runDoctor(config);
-
-    const activeCheck = results.find(r => r.check === 'active');
-    expect(activeCheck).toBeDefined();
-    expect(activeCheck!.status).toBe('warn');
-  });
-
   it('should pass when everything is set up', async () => {
     // Setup profiles
     await fs.mkdir(path.join(testDir, 'profiles'), { recursive: true });
@@ -70,37 +62,15 @@ describe('doctor command', () => {
     // Setup skill in registry
     await fs.mkdir(path.join(testDir, 'global', 'git-commit'), { recursive: true });
 
-    // Setup active
-    await fs.mkdir(path.join(testDir, 'active-skills', 'test'), { recursive: true });
-
     const fullConfig: Config = {
       ...config,
-      profilesDir: path.join(testDir, 'profiles'),
-      activeDir: path.join(testDir, 'active-skills')
+      profilesDir: path.join(testDir, 'profiles')
     };
 
     const results = await runDoctor(fullConfig);
 
     const profilesCheck = results.find(r => r.check === 'profiles');
     expect(profilesCheck!.status).toBe('ok');
-
-    const activeCheck = results.find(r => r.check === 'active');
-    expect(activeCheck!.status).toBe('ok');
-  });
-
-  it('should check active skills from cacheDir when activeDir is not set', async () => {
-    await fs.mkdir(path.join(testDir, 'cache', 'active-skills', 'coding'), { recursive: true });
-
-    const cacheConfig: Config = {
-      ...config,
-      cacheDir: path.join(testDir, 'cache')
-    };
-
-    const results = await runDoctor(cacheConfig);
-
-    const activeCheck = results.find(r => r.check === 'active');
-    expect(activeCheck!.status).toBe('ok');
-    expect(activeCheck!.message).toBe('1 materialized profiles');
   });
 
   it('should report config check', async () => {
