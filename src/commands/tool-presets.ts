@@ -8,34 +8,11 @@ export interface ToolPreset {
 }
 
 export const TOOL_PRESETS: ToolPreset[] = [
-  {
-    label: 'Claude Code',
-    key: 'claude-code',
-    configPath: '~/.claude',
-    mappings: [
-      { from: 'commands', to: 'commands' },
-      { from: 'skills', to: 'skills' },
-      { from: 'agents', to: 'agents' },
-    ],
-  },
-  {
-    label: 'Cursor',
-    key: 'cursor',
-    configPath: '~/.cursor',
-    mappings: [{ from: 'commands', to: 'commands' }],
-  },
-  {
-    label: 'Codex',
-    key: 'codex',
-    configPath: '~/.codex',
-    mappings: [{ from: 'commands', to: 'commands' }],
-  },
-  {
-    label: 'Kiro',
-    key: 'kiro',
-    configPath: '~/.kiro',
-    mappings: [{ from: 'commands', to: 'commands' }],
-  },
+  { label: 'Claude Code', key: 'claude-code', configPath: '~/.claude', mappings: [{ from: 'global', to: 'skills' }] },
+  { label: 'Agents',      key: 'agents',      configPath: '~/.agents', mappings: [{ from: 'global', to: 'skills' }] },
+  { label: 'Codex',       key: 'codex',       configPath: '~/.codex',  mappings: [{ from: 'global', to: 'skills' }] },
+  { label: 'Cursor',      key: 'cursor',      configPath: '~/.cursor', mappings: [{ from: 'global', to: 'skills' }] },
+  { label: 'Kiro',        key: 'kiro',        configPath: '~/.kiro',   mappings: [{ from: 'global', to: 'skills' }] },
 ];
 
 export const presetToToolConfig = (preset: ToolPreset): ToolConfig => ({
