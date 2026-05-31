@@ -1,7 +1,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { MaterializeResult } from '../types';
-import { Config } from '../lib/config';
+import { Config, resolveActiveSkillsDir } from '../lib/config';
 import { ProfileNotFoundError } from '../lib/errors';
 import { ProfileService } from './ProfileService';
 
@@ -26,11 +26,11 @@ export class MaterializeService {
       throw new ProfileNotFoundError(profileName);
     }
 
-    const activeDir = this.config.activeDir ||
-      path.join(this.config.source, 'active-skills');
+    const activeDir = resolveActiveSkillsDir(this.config);
     const profileActiveDir = ensureWithin(activeDir, profileName);
 
     await fs.mkdir(profileActiveDir, { recursive: true });
+    await this.cleanupStaleLinks(profileActiveDir);
 
     const skills: MaterializeResult['skills'] = [];
 
@@ -72,10 +72,19 @@ export class MaterializeService {
   }
 
   async cleanup(profileName: string): Promise<void> {
-    const activeDir = this.config.activeDir ||
-      path.join(this.config.source, 'active-skills');
+    const activeDir = resolveActiveSkillsDir(this.config);
     const profileActiveDir = ensureWithin(activeDir, profileName);
 
     await fs.rm(profileActiveDir, { recursive: true, force: true });
+  }
+
+  private async cleanupStaleLinks(profileActiveDir: string): Promise<void> {
+    const entries = await fs.readdir(profileActiveDir, { withFileTypes: true });
+
+    await Promise.all(
+      entries
+        .filter((entry) => entry.isSymbolicLink())
+        .map((entry) => fs.unlink(path.join(profileActiveDir, entry.name)))
+    );
   }
 }

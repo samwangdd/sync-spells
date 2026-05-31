@@ -16,9 +16,9 @@ export class SkillService {
 
   async listSkills(category?: SkillCategory): Promise<SkillInfo[]> {
     const registryDir = this.config.source;
-    const categories: SkillCategory[] = category
+    const categories = category
       ? [category]
-      : ['global', 'code', 'lifeos', 'inbox'];
+      : await this.listCategories(registryDir);
 
     const skills: SkillInfo[] = [];
 
@@ -47,16 +47,154 @@ export class SkillService {
     for (const entry of entries) {
       if (entry.isDirectory()) {
         const skillPath = path.join(dir, entry.name);
-        const hasSkillMd = await this.checkSkillMd(skillPath);
+        await this.scanSkillDirectory(skillPath, category, skills);
+      }
+    }
+  }
 
-        skills.push({
-          path: `${category}/${entry.name}`,
-          category,
-          name: entry.name,
-          hasSkillMd
+  private async listCategories(registryDir: string): Promise<SkillCategory[]> {
+    const preferred = ['global', 'coding', 'code', 'liveos', 'lifeos', 'inbox'];
+    const entries = await fs.readdir(registryDir, { withFileTypes: true }).catch(() => []);
+    const found = entries
+      .filter(entry => entry.isDirectory())
+      .map(entry => entry.name)
+      .filter(name => !name.startsWith('.') && name !== 'active-skills');
+
+    const ordered = preferred.filter(name => found.includes(name));
+    const rest = found.filter(name => !preferred.includes(name)).sort();
+
+    return [...ordered, ...rest];
+  }
+
+  private async scanSkillDirectory(
+    dir: string,
+    category: SkillCategory,
+    skills: SkillInfo[]
+  ): Promise<void> {
+    const hasSkillMd = await this.checkSkillMd(dir);
+    const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
+    const childDirs = entries.filter(entry => entry.isDirectory());
+
+    if (hasSkillMd || childDirs.length === 0) {
+      skills.push({
+        path: path.relative(this.config.source, dir),
+        category,
+        name: path.basename(dir),
+        hasSkillMd
+      });
+      return;
+    }
+
+    for (const entry of childDirs) {
+      await this.scanSkillDirectory(path.join(dir, entry.name), category, skills);
+    }
+  }
+
+  async globalizeSkill(skillPathOrName: string): Promise<{
+    from: string;
+    to: string;
+    updatedProfiles: string[];
+  }> {
+    const from = await this.resolveSkillPath(skillPathOrName);
+    const skillName = path.basename(from);
+    const to = `global/${skillName}`;
+    const sourcePath = ensureWithin(this.config.source, from);
+    const targetPath = ensureWithin(this.config.source, to);
+
+    if (from === to) {
+      return { from, to, updatedProfiles: [] };
+    }
+
+    if (await this.fileExists(targetPath)) {
+      throw new Error(`Global skill already exists: ${to}`);
+    }
+
+    const updates = await this.prepareProfileReferenceUpdates(from, to);
+
+    await fs.mkdir(path.dirname(targetPath), { recursive: true });
+    await fs.rename(sourcePath, targetPath);
+
+    const updatedProfiles: string[] = [];
+    for (const update of updates) {
+      await fs.writeFile(update.filePath, update.content, 'utf8');
+      updatedProfiles.push(update.filePath);
+    }
+
+    return { from, to, updatedProfiles };
+  }
+
+  private async resolveSkillPath(skillPathOrName: string): Promise<string> {
+    const normalized = skillPathOrName.replace(/^\/+|\/+$/g, '');
+    if (!normalized || normalized.includes('..')) {
+      throw new Error(`Invalid skill path: ${skillPathOrName}`);
+    }
+
+    if (normalized.includes('/')) {
+      const fullPath = ensureWithin(this.config.source, normalized);
+      if (!(await this.fileExists(fullPath))) {
+        throw new Error(`Skill not found: ${normalized}`);
+      }
+      const knownSkill = (await this.listSkills()).some(skill => skill.path === normalized);
+      if (!knownSkill) {
+        throw new Error(`Skill not found: ${normalized}`);
+      }
+      return normalized;
+    }
+
+    const matches = (await this.listSkills())
+      .filter(skill => skill.name === normalized)
+      .map(skill => skill.path);
+
+    if (matches.length === 0) {
+      throw new Error(`Skill not found: ${normalized}`);
+    }
+
+    if (matches.length > 1) {
+      throw new Error(`Ambiguous skill name: ${normalized}\nCandidates:\n  ${matches.join('\n  ')}`);
+    }
+
+    return matches[0];
+  }
+
+  private async prepareProfileReferenceUpdates(
+    from: string,
+    to: string
+  ): Promise<{ filePath: string; content: string }[]> {
+    const profilesDir = this.config.profilesDir || path.join(this.config.source, 'profiles');
+    const entries = await fs.readdir(profilesDir, { withFileTypes: true }).catch(() => []);
+    const updates: { filePath: string; content: string }[] = [];
+
+    for (const entry of entries) {
+      if (!entry.isFile() || !entry.name.endsWith('.json')) {
+        continue;
+      }
+
+      const filePath = path.join(profilesDir, entry.name);
+      const raw = await fs.readFile(filePath, 'utf8');
+      const parsed = JSON.parse(raw) as { skills?: unknown };
+
+      if (!Array.isArray(parsed.skills)) {
+        continue;
+      }
+
+      let changed = false;
+      parsed.skills = parsed.skills.map(skill => {
+        if (skill === from) {
+          changed = true;
+          return to;
+        }
+        return skill;
+      });
+
+      if (changed) {
+        updates.push({
+          filePath,
+          content: `${JSON.stringify(parsed, null, 2)}\n`
         });
       }
     }
+
+    return updates;
   }
 
   private async checkSkillMd(skillPath: string): Promise<boolean> {

@@ -1,4 +1,5 @@
 import * as path from 'path';
+import * as fs from 'fs/promises';
 import { Command } from 'commander';
 import { readConfig, expandHome } from '../lib/config';
 import { checkSymlinkState, SymlinkState } from '../lib/symlink';
@@ -8,6 +9,18 @@ interface StatusEntry {
   from: string;
   to: string;
   state: SymlinkState;
+}
+
+interface ProjectStatusTarget {
+  path: string;
+  exists: boolean;
+  count: number;
+}
+
+interface ProjectStatus {
+  preset: string | null;
+  linkedSkills: number;
+  targets: ProjectStatusTarget[];
 }
 
 export const runStatus = async (): Promise<StatusEntry[]> => {
@@ -37,17 +50,80 @@ export const runStatus = async (): Promise<StatusEntry[]> => {
   return entries;
 };
 
+const countSkillEntries = async (dir: string): Promise<{ exists: boolean; names: string[] }> => {
+  try {
+    const entries = await fs.readdir(dir);
+    return { exists: true, names: entries };
+  } catch {
+    return { exists: false, names: [] };
+  }
+};
+
+export const runProjectStatus = async (projectPath = process.cwd()): Promise<ProjectStatus> => {
+  let preset: string | null = null;
+
+  try {
+    const content = await fs.readFile(path.join(projectPath, '.sync-spells.json'), 'utf8');
+    const state = JSON.parse(content);
+    preset = state.activePreset || state.activeProfile || null;
+  } catch {
+    preset = null;
+  }
+
+  const targetPaths = ['.codex/skills', '.claude/skills'];
+  const targets: ProjectStatusTarget[] = [];
+  const skillNames = new Set<string>();
+
+  for (const targetPath of targetPaths) {
+    const result = await countSkillEntries(path.join(projectPath, targetPath));
+    for (const name of result.names) {
+      skillNames.add(name);
+    }
+    targets.push({
+      path: targetPath,
+      exists: result.exists,
+      count: result.names.length,
+    });
+  }
+
+  return {
+    preset,
+    linkedSkills: skillNames.size,
+    targets,
+  };
+};
+
+const formatSkillCount = (count: number): string => `${count} ${count === 1 ? 'skill' : 'skills'}`;
+
 export const registerStatus = (program: Command): void => {
   program
     .command('status')
-    .description('Show sync status for all tool mappings')
-    .action(async () => {
-      const entries = await runStatus();
-      for (const entry of entries) {
-        console.log(`  [${entry.tool}] ${entry.from} → ${entry.to}: ${entry.state}`);
+    .description('Show project preset status')
+    .option('--verbose', 'Show global tool mapping status')
+    .action(async (options?: { verbose?: boolean }) => {
+      if (options?.verbose) {
+        const entries = await runStatus();
+        for (const entry of entries) {
+          console.log(`  [${entry.tool}] ${entry.from} → ${entry.to}: ${entry.state}`);
+        }
+        if (entries.length === 0) {
+          console.log('No enabled tools. Run `spells setup` to configure.');
+        }
+        return;
       }
-      if (entries.length === 0) {
-        console.log('No enabled tools. Run `spells setup` to configure.');
+
+      const status = await runProjectStatus();
+      if (!status.preset) {
+        console.log('No preset active for this project.');
+        console.log('Run `spells use <preset>` to activate one.');
+        return;
+      }
+
+      console.log(`Project preset: ${status.preset}`);
+      console.log(`Linked skills: ${status.linkedSkills}`);
+      for (const target of status.targets) {
+        const state = target.exists ? 'exists' : 'missing';
+        console.log(`${target.path}: ${state} (${formatSkillCount(target.count)})`);
       }
     });
 };

@@ -1,7 +1,6 @@
 import { Command } from 'commander';
 import * as fs from 'fs/promises';
-import * as path from 'path';
-import { Config } from '../lib/config';
+import { Config, resolveActiveSkillsDir } from '../lib/config';
 import { ProfileService } from '../services/ProfileService';
 import { MaterializeService } from '../services/MaterializeService';
 
@@ -9,6 +8,10 @@ export const runMaterialize = async (config: Config, profileName: string) => {
   const profileSvc = new ProfileService(config);
   const materializeSvc = new MaterializeService(config, profileSvc);
   return await materializeSvc.materialize(profileName);
+};
+
+export const runMaterializedProfilesList = async (config: Config): Promise<string[]> => {
+  return await fs.readdir(resolveActiveSkillsDir(config));
 };
 
 export const registerMaterialize = (program: Command, getConfig: () => Promise<Config>): void => {
@@ -20,9 +23,8 @@ export const registerMaterialize = (program: Command, getConfig: () => Promise<C
       const config = await getConfig();
 
       if (options.list) {
-        const activeDir = config.activeDir || path.join(config.source, 'active-skills');
         try {
-          const profiles = await fs.readdir(activeDir);
+          const profiles = await runMaterializedProfilesList(config);
           console.log('\nMaterialized Profiles:');
           profiles.forEach(p => console.log(`  - ${p}`));
           console.log('');

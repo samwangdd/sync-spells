@@ -17,7 +17,7 @@ export const runProfilesShow = async (config: Config, name: string) => {
 };
 
 export const registerProfiles = (program: Command, getConfig: () => Promise<Config> = readConfig): void => {
-  const profilesCmd = program.command('profiles');
+  const profilesCmd = program.command('profiles').description('Manage skill profiles');
 
   profilesCmd
     .command('list')

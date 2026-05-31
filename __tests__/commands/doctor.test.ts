@@ -88,6 +88,21 @@ describe('doctor command', () => {
     expect(activeCheck!.status).toBe('ok');
   });
 
+  it('should check active skills from cacheDir when activeDir is not set', async () => {
+    await fs.mkdir(path.join(testDir, 'cache', 'active-skills', 'coding'), { recursive: true });
+
+    const cacheConfig: Config = {
+      ...config,
+      cacheDir: path.join(testDir, 'cache')
+    };
+
+    const results = await runDoctor(cacheConfig);
+
+    const activeCheck = results.find(r => r.check === 'active');
+    expect(activeCheck!.status).toBe('ok');
+    expect(activeCheck!.message).toBe('1 materialized profiles');
+  });
+
   it('should report config check', async () => {
     const results = await runDoctor(config);
 

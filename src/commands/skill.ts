@@ -4,7 +4,13 @@ import { Config } from '../lib/config';
 import { SkillService } from '../services/SkillService';
 
 export const registerSkill = (program: Command, getConfig: () => Promise<Config>): void => {
-  const skillCmd = program.command('skill');
+  const skillCmd = program.command('skill').description(
+    'Manage skills in the Library\n' +
+    '  add <path>          Add existing skill to Library\n' +
+    '  new <name>          Create new skill skeleton\n' +
+    '  list                List skills in Library\n' +
+    '  globalize <skill>   Move a skill into global'
+  );
 
   skillCmd
     .command('add <path>')
@@ -19,7 +25,7 @@ export const registerSkill = (program: Command, getConfig: () => Promise<Config>
 
       try {
         await skillSvc.addSkill(sourcePath, targetPath);
-        console.log(`\n✓ Skill added to: ${targetPath}\n`);
+        console.log(`\n✓ Skill added to Library: ${targetPath}\n`);
       } catch (error) {
         console.error(`\n❌ Error: ${error}\n`);
         process.exit(1);
@@ -47,7 +53,7 @@ export const registerSkill = (program: Command, getConfig: () => Promise<Config>
   skillCmd
     .command('list')
     .option('--category <cat>', 'Filter by category')
-    .description('List skills in registry')
+    .description('List skills in Library')
     .action(async (options: { category?: string }) => {
       const config = await getConfig();
       const skillSvc = new SkillService(config);
@@ -55,7 +61,7 @@ export const registerSkill = (program: Command, getConfig: () => Promise<Config>
       try {
         const skills = await skillSvc.listSkills(options.category as any);
 
-        console.log('\nSkills in registry:');
+        console.log('\nSkills in Library:');
         for (const skill of skills) {
           const md = skill.hasSkillMd ? '✓' : '✗';
           console.log(`  [${skill.category.padEnd(7)}] ${skill.name} ${md}`);
@@ -63,6 +69,27 @@ export const registerSkill = (program: Command, getConfig: () => Promise<Config>
         console.log(`\nTotal: ${skills.length} skills\n`);
       } catch (error) {
         console.error(`\n❌ Error: ${error}\n`);
+        process.exit(1);
+      }
+    });
+
+  skillCmd
+    .command('globalize <skill>')
+    .description('Move a skill into global and update profile references')
+    .action(async (skill: string) => {
+      const config = await getConfig();
+      const skillSvc = new SkillService(config);
+
+      try {
+        const result = await skillSvc.globalizeSkill(skill);
+        console.log(`\n✓ Skill moved to Global: ${result.from} → ${result.to}`);
+        if (result.updatedProfiles.length > 0) {
+          console.log(`  Updated ${result.updatedProfiles.length} profile file(s)\n`);
+        } else {
+          console.log('  No profile references needed updates\n');
+        }
+      } catch (error) {
+        console.error(`\n❌ Error: ${error instanceof Error ? error.message : String(error)}\n`);
         process.exit(1);
       }
     });

@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { Config } from '../lib/config';
+import { Config, resolveActiveSkillsDir } from '../lib/config';
 import { ProfileService } from '../services/ProfileService';
 
 export interface DoctorResult {
@@ -51,7 +51,7 @@ export const runDoctor = async (config: Config): Promise<DoctorResult[]> => {
   }
 
   // Check active skills
-  const activeDir = config.activeDir || path.join(config.source, 'active-skills');
+  const activeDir = resolveActiveSkillsDir(config);
   try {
     const materialized = await fs.readdir(activeDir);
     results.push({ check: 'active', status: 'ok', message: `${materialized.length} materialized profiles` });

@@ -59,40 +59,68 @@ Copies spell files from the specified directory (defaults to current directory) 
 spells status
 ```
 
-Shows the symlink status of every mapping for each tool.
+Shows the active preset and linked skills for the current project. Use `spells status --verbose` to inspect global tool mapping symlinks.
 
-## Profile System
+## Skill Management
 
-SyncSpells supports Profile-based skill management. Profiles define which skills to activate for different projects.
+SyncSpells has four daily concepts:
+
+1. **Library** - all available skills in `skills-registry/`.
+2. **Global** - shared skills physically stored in `skills-registry/global/`.
+3. **Preset** - a working mode that selects skills, such as `coding` or `lifeos`.
+4. **Project** - the current repository using one preset.
+
+Profiles still exist as the backward-compatible storage format for presets.
 
 ### Commands
 
-- `spells profiles [list|show]` - Manage profiles
-- `spells use [--profile <name>]` - Activate profile in current project
-- `spells materialize <profile>` - Generate active skills from profile
-- `spells skill add <path>` - Add skill to registry
-- `spells skill new <name>` - Create new skill
-- `spells skill list [--category]` - List registry skills
+- `spells skill list [--category]` - List Library skills
+- `spells skill add <path>` - Add skill to the Library
+- `spells skill new <name>` - Create a new skill
+- `spells skill globalize <skill>` - Move a skill to `skills-registry/global/<name>` and update profile/preset references
+- `spells preset [list|show]` - Manage presets
+- `spells use <preset>` - Activate a preset in the current project
+- `spells profiles [list|show]` - Backward-compatible profile commands
+- `spells materialize <profile>` - Generate the internal skill cache from a profile
 - `spells doctor` - Health check
 - `spells config [get|set]` - Configuration management
 
 ### Quick Start
 
-1. Initialize:
+1. Review available skills:
    ```bash
-   spells setup
+   spells skill list
    ```
 
-2. Use in project:
+2. Review presets:
+   ```bash
+   spells preset list
+   ```
+
+3. Activate a preset in a project:
    ```bash
    cd /path/to/project
-   spells use
+   spells use coding
    ```
 
-3. Check health:
+4. Check status:
    ```bash
-   spells doctor
+   spells status
    ```
+
+### Global Skills
+
+Use `globalize` when a skill should be shared by both LiveOS and Coding presets:
+
+```bash
+spells skill globalize <skill>
+```
+
+This physically moves the skill directory to `skills-registry/global/<name>` and updates every profile/preset JSON reference from the old Library path to the new `global/<name>` path. If a bare skill name matches multiple Library paths, rerun the command with the full Library path.
+
+### Implementation Notes
+
+`active-skills` is an internal generated cache used to materialize a preset before linking it into project tool directories such as `.codex/skills` and `.claude/skills`. It is kept compatible for existing configurations, but it is not part of the daily quickstart flow.
 
 ## Local Development
 

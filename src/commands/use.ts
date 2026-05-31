@@ -26,30 +26,31 @@ export const runUse = async (
 
 export const registerUse = (program: Command, getConfig: () => Promise<Config>): void => {
   program
-    .command('use')
+    .command('use [preset]')
     .option('--profile <name>', 'Specify profile name')
-    .description('Activate profile in current project')
-    .action(async (options: { profile?: string }) => {
+    .description('Activate preset in current project')
+    .action(async (preset: string | undefined, options: { profile?: string }) => {
       const config = await getConfig();
       const projectPath = process.cwd();
+      const profileName = preset || options.profile;
 
       try {
-        const result = await runUse(config, projectPath, options.profile);
+        const result = await runUse(config, projectPath, profileName);
 
-        console.log(`\n✓ Activating ${result.skills.length} skills`);
+        console.log(`\nActivating preset: ${result.profile}`);
+        console.log(`Linked ${result.skills.length} skills into this project.`);
 
         for (const skill of result.skills) {
-          const icon = skill.status === 'linked' ? '✓' : skill.status === 'error' ? '✗' : '⊘';
-          console.log(`  ${icon} ${skill.name} → ${skill.targetPath}`);
+          const icon = skill.status === 'linked' ? '-' : skill.status === 'error' ? 'x' : '-';
+          console.log(`  ${icon} ${skill.name} -> ${skill.targetPath}`);
           if (skill.error) {
             console.log(`    Error: ${skill.error}`);
           }
         }
 
-        const linked = result.skills.filter(s => s.status === 'linked').length;
-        console.log(`\n✓ Done! Restart Claude Code to see changes.\n`);
+        console.log(`\nDone. Restart Claude Code or Codex if the tool has already loaded this project.\n`);
       } catch (error) {
-        console.error(`\n❌ Error: ${error}\n`);
+        console.error(`\nError: ${error}\n`);
         process.exit(1);
       }
     });

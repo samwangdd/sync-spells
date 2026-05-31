@@ -1,7 +1,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { ProjectActivationResult, InferenceRule } from '../types';
-import { Config } from '../lib/config';
+import { Config, resolveActiveSkillsDir } from '../lib/config';
 import { ProfileNotFoundError } from '../lib/errors';
 import { ProfileService } from './ProfileService';
 
@@ -49,8 +49,7 @@ export class ProjectService {
       throw new ProfileNotFoundError(profileName);
     }
 
-    const activeDir = this.config.activeDir ||
-      path.join(this.config.source, 'active-skills');
+    const activeDir = resolveActiveSkillsDir(this.config);
     const profileActiveDir = ensureWithin(activeDir, profileName);
 
     const skills: ProjectActivationResult['skills'] = [];
@@ -88,6 +87,16 @@ export class ProjectService {
       }
     }
 
+    try {
+      await fs.writeFile(
+        path.join(projectPath, '.sync-spells.json'),
+        JSON.stringify({ activePreset: profileName, activeProfile: profileName }, null, 2),
+        'utf8'
+      );
+    } catch {
+      // State is helpful for status, but linking results should remain the source of truth.
+    }
+
     return {
       projectPath,
       profile: profileName,
@@ -101,7 +110,7 @@ export class ProjectService {
     try {
       const content = await fs.readFile(stateFile, 'utf8');
       const state = JSON.parse(content);
-      return state.activeProfile || null;
+      return state.activePreset || state.activeProfile || null;
     } catch {
       return null;
     }

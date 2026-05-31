@@ -102,7 +102,7 @@ describe('MaterializeService', () => {
     expect(result.skills).toHaveLength(1);
   });
 
-  it('should use default activeDir when config.activeDir is not set', async () => {
+  it('should use default cache activeDir when config.activeDir is not set', async () => {
     const configNoActiveDir: Config = {
       source: testDir,
       tools: {}
@@ -115,8 +115,50 @@ describe('MaterializeService', () => {
 
     expect(result.skills[0].status).toBe('created');
 
-    const defaultActiveDir = path.join(testDir, 'active-skills', 'test', 'git-commit');
+    const defaultActiveDir = path.join(
+      testDir,
+      '.sync-spells-cache',
+      'active-skills',
+      'test',
+      'git-commit'
+    );
     const target = await fs.readlink(defaultActiveDir);
+    expect(target).toContain('global/git-commit');
+  });
+
+  it('should use cacheDir when activeDir is not set', async () => {
+    const configWithCacheDir: Config = {
+      source: testDir,
+      tools: {},
+      cacheDir: path.join(testDir, 'cache')
+    };
+
+    profileService = new ProfileService(configWithCacheDir);
+    service = new MaterializeService(configWithCacheDir, profileService);
+
+    const result = await service.materialize('test');
+
+    expect(result.skills[0].status).toBe('created');
+
+    const cacheLink = path.join(testDir, 'cache', 'active-skills', 'test', 'git-commit');
+    const target = await fs.readlink(cacheLink);
+    expect(target).toContain('global/git-commit');
+  });
+
+  it('should remove stale symlinks before materializing profile', async () => {
+    const profileActiveDir = path.join(testDir, 'active-skills', 'test');
+    await fs.mkdir(profileActiveDir, { recursive: true });
+
+    const staleTarget = path.join(testDir, 'global', 'old-skill');
+    await fs.mkdir(staleTarget, { recursive: true });
+    const staleLink = path.join(profileActiveDir, 'old-skill');
+    await fs.symlink(staleTarget, staleLink);
+
+    await service.materialize('test');
+
+    await expect(fs.lstat(staleLink)).rejects.toThrow();
+    const activeLink = path.join(profileActiveDir, 'git-commit');
+    const target = await fs.readlink(activeLink);
     expect(target).toContain('global/git-commit');
   });
 });

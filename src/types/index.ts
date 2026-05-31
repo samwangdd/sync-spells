@@ -13,7 +13,7 @@ export interface ValidationResult {
 
 export interface SkillInfo {
   path: string;
-  category: 'global' | 'code' | 'lifeos' | 'inbox';
+  category: SkillCategory;
   name: string;
   hasSkillMd: boolean;
 }
@@ -40,7 +40,7 @@ export interface ProjectActivationResult {
   }[];
 }
 
-export type SkillCategory = 'global' | 'code' | 'lifeos' | 'inbox';
+export type SkillCategory = string;
 
 export interface InferenceRule {
   pattern: RegExp;

@@ -28,7 +28,7 @@ export const runConfigSet = async (key: string, value: string) => {
 };
 
 export const registerConfig = (program: Command): void => {
-  const configCmd = program.command('config');
+  const configCmd = program.command('config').description('View and edit configuration');
 
   configCmd
     .command('get <key>')

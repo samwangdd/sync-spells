@@ -19,6 +19,7 @@ export interface Config {
   defaultProfile?: string;
   profilesDir?: string;
   activeDir?: string;
+  cacheDir?: string;
 }
 
 const isToolMapping = (value: unknown): value is ToolMapping => {
@@ -95,6 +96,18 @@ export const expandHome = (filePath: string): string => {
   }
 
   return path.join(os.homedir(), filePath.slice(2));
+};
+
+export const resolveActiveSkillsDir = (config: Config): string => {
+  if (config.activeDir) {
+    return config.activeDir;
+  }
+
+  if (config.cacheDir) {
+    return path.join(config.cacheDir, 'active-skills');
+  }
+
+  return path.join(config.source, '.sync-spells-cache', 'active-skills');
 };
 
 export const readConfig = async (): Promise<Config> => {

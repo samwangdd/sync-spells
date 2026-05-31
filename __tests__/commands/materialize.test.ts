@@ -1,4 +1,4 @@
-import { runMaterialize } from '../../src/commands/materialize';
+import { runMaterialize, runMaterializedProfilesList } from '../../src/commands/materialize';
 import { Config } from '../../src/lib/config';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -44,5 +44,19 @@ describe('materialize command', () => {
 
   it('should throw for unknown profile', async () => {
     await expect(runMaterialize(config, 'unknown')).rejects.toThrow('Profile not found');
+  });
+
+  it('should list materialized profiles from cacheDir when activeDir is not set', async () => {
+    const cacheConfig: Config = {
+      source: testDir,
+      tools: {},
+      profilesDir: path.join(testDir, 'profiles'),
+      cacheDir: path.join(testDir, 'cache')
+    };
+    await fs.mkdir(path.join(testDir, 'cache', 'active-skills', 'coding'), { recursive: true });
+
+    const profiles = await runMaterializedProfilesList(cacheConfig);
+
+    expect(profiles).toEqual(['coding']);
   });
 });

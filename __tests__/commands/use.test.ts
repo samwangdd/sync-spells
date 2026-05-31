@@ -61,11 +61,29 @@ describe('use command', () => {
 
     const linked = result.skills.filter(s => s.status === 'linked');
     expect(linked.length).toBeGreaterThan(0);
+
+    const state = JSON.parse(await fs.readFile(path.join(projectDir, '.sync-spells.json'), 'utf8'));
+    expect(state.activePreset).toBe('test');
+    expect(state.activeProfile).toBe('test');
   });
 
   it('should use inferred profile when no profile specified', async () => {
     const result = await runUse(config, '/Users/sammore/Mexc/frontend');
 
     expect(result.profile).toBe('mexc-code');
+  });
+
+  it('should use default generated cache when activeDir is not configured', async () => {
+    const configWithoutActiveDir: Config = {
+      source: testDir,
+      tools: {},
+      profilesDir: path.join(testDir, 'profiles')
+    };
+
+    const result = await runUse(configWithoutActiveDir, projectDir, 'test');
+
+    expect(result.profile).toBe('test');
+    const target = await fs.readlink(path.join(projectDir, '.codex', 'skills', 'git-commit'));
+    expect(target).toContain(path.join('.sync-spells-cache', 'active-skills', 'test', 'git-commit'));
   });
 });

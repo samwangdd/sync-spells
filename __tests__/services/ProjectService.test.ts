@@ -59,6 +59,16 @@ describe('ProjectService', () => {
     expect(activeProfile).toBe('test-profile');
   });
 
+  it('should prefer active preset from state file', async () => {
+    await fs.writeFile(
+      path.join(testDir, '.sync-spells.json'),
+      JSON.stringify({ activePreset: 'coding', activeProfile: 'old-profile' })
+    );
+
+    const activeProfile = await service.getActiveProfile(testDir);
+    expect(activeProfile).toBe('coding');
+  });
+
   it('should return null when no state file exists', async () => {
     const activeProfile = await service.getActiveProfile(testDir);
     expect(activeProfile).toBeNull();

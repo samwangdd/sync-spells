@@ -185,14 +185,17 @@ describe('status command', () => {
 
 describe('registerStatus', () => {
   const originalHome = process.env.HOME;
+  const originalCwd = process.cwd();
   let tempHome: string;
 
   beforeEach(() => {
     tempHome = mkdtempSync(path.join(os.tmpdir(), 'sync-spells-reg-status-'));
     process.env.HOME = tempHome;
+    process.chdir(tempHome);
   });
 
   afterEach(() => {
+    process.chdir(originalCwd);
     process.env.HOME = originalHome;
     jest.restoreAllMocks();
     jest.resetModules();
@@ -214,17 +217,129 @@ describe('registerStatus', () => {
     const mockCommand = {
       command: jest.fn().mockReturnThis(),
       description: jest.fn().mockReturnThis(),
+      option: jest.fn().mockReturnThis(),
       action: jest.fn(),
     };
 
     registerStatus(mockCommand as unknown as import('commander').Command);
 
     expect(mockCommand.command).toHaveBeenCalledWith('status');
-    expect(mockCommand.description).toHaveBeenCalledWith('Show sync status for all tool mappings');
+    expect(mockCommand.description).toHaveBeenCalledWith('Show project preset status');
+    expect(mockCommand.option).toHaveBeenCalledWith('--verbose', 'Show global tool mapping status');
     expect(mockCommand.action).toHaveBeenCalledTimes(1);
   });
 
-  test('registerStatus action prints status entries', async () => {
+  test('registerStatus action prints default project status from activePreset', async () => {
+    jest.resetModules();
+    const actualOs = jest.requireActual<typeof import('os')>('os');
+    jest.doMock('os', () => ({
+      ...actualOs,
+      homedir: () => tempHome,
+    }));
+
+    const projectDir = path.join(tempHome, 'project');
+    mkdirSync(path.join(projectDir, '.codex', 'skills'), { recursive: true });
+    mkdirSync(path.join(projectDir, '.claude', 'skills'), { recursive: true });
+    mkdirSync(path.join(projectDir, '.codex', 'skills', 'skill-a'), { recursive: true });
+    mkdirSync(path.join(projectDir, '.claude', 'skills', 'skill-a'), { recursive: true });
+    mkdirSync(path.join(projectDir, '.claude', 'skills', 'skill-b'), { recursive: true });
+    writeFileSync(
+      path.join(projectDir, '.sync-spells.json'),
+      JSON.stringify({ activePreset: 'coding' }),
+      'utf8',
+    );
+    process.chdir(projectDir);
+
+    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const { registerStatus } = require('../../src/commands/status') as typeof import('../../src/commands/status');
+
+    const mockCommand = {
+      command: jest.fn().mockReturnThis(),
+      description: jest.fn().mockReturnThis(),
+      option: jest.fn().mockReturnThis(),
+      action: jest.fn(),
+    };
+
+    registerStatus(mockCommand as unknown as import('commander').Command);
+    const actionFn = mockCommand.action.mock.calls[0][0] as () => Promise<void>;
+    await actionFn();
+
+    const output = consoleLogSpy.mock.calls.map(([line]) => line).join('\n');
+    expect(output).toContain('Project preset: coding');
+    expect(output).toContain('Linked skills: 2');
+    expect(output).toContain('.codex/skills: exists (1 skill)');
+    expect(output).toContain('.claude/skills: exists (2 skills)');
+    expect(output).not.toContain('active-skills');
+  });
+
+  test('registerStatus action reads activeProfile for legacy project status', async () => {
+    jest.resetModules();
+    const actualOs = jest.requireActual<typeof import('os')>('os');
+    jest.doMock('os', () => ({
+      ...actualOs,
+      homedir: () => tempHome,
+    }));
+
+    const projectDir = path.join(tempHome, 'legacy-project');
+    mkdirSync(path.join(projectDir, '.codex', 'skills'), { recursive: true });
+    writeFileSync(
+      path.join(projectDir, '.sync-spells.json'),
+      JSON.stringify({ activeProfile: 'lifeos' }),
+      'utf8',
+    );
+    process.chdir(projectDir);
+
+    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const { registerStatus } = require('../../src/commands/status') as typeof import('../../src/commands/status');
+
+    const mockCommand = {
+      command: jest.fn().mockReturnThis(),
+      description: jest.fn().mockReturnThis(),
+      option: jest.fn().mockReturnThis(),
+      action: jest.fn(),
+    };
+
+    registerStatus(mockCommand as unknown as import('commander').Command);
+    const actionFn = mockCommand.action.mock.calls[0][0] as () => Promise<void>;
+    await actionFn();
+
+    const output = consoleLogSpy.mock.calls.map(([line]) => line).join('\n');
+    expect(output).toContain('Project preset: lifeos');
+  });
+
+  test('registerStatus action prints default message when no project state exists', async () => {
+    jest.resetModules();
+    const actualOs = jest.requireActual<typeof import('os')>('os');
+    jest.doMock('os', () => ({
+      ...actualOs,
+      homedir: () => tempHome,
+    }));
+
+    const projectDir = path.join(tempHome, 'empty-project');
+    mkdirSync(projectDir, { recursive: true });
+    process.chdir(projectDir);
+
+    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const { registerStatus } = require('../../src/commands/status') as typeof import('../../src/commands/status');
+
+    const mockCommand = {
+      command: jest.fn().mockReturnThis(),
+      description: jest.fn().mockReturnThis(),
+      option: jest.fn().mockReturnThis(),
+      action: jest.fn(),
+    };
+
+    registerStatus(mockCommand as unknown as import('commander').Command);
+    const actionFn = mockCommand.action.mock.calls[0][0] as () => Promise<void>;
+    await actionFn();
+
+    const output = consoleLogSpy.mock.calls.map(([line]) => line).join('\n');
+    expect(output).toContain('No preset active for this project.');
+    expect(output).toContain('Run `spells use <preset>` to activate one.');
+    expect(output).not.toContain('active-skills');
+  });
+
+  test('registerStatus verbose action prints status entries', async () => {
     jest.resetModules();
     const actualOs = jest.requireActual<typeof import('os')>('os');
     jest.doMock('os', () => ({
@@ -260,12 +375,13 @@ describe('registerStatus', () => {
     const mockCommand = {
       command: jest.fn().mockReturnThis(),
       description: jest.fn().mockReturnThis(),
+      option: jest.fn().mockReturnThis(),
       action: jest.fn(),
     };
 
     registerStatus(mockCommand as unknown as import('commander').Command);
-    const actionFn = mockCommand.action.mock.calls[0][0] as () => Promise<void>;
-    await actionFn();
+    const actionFn = mockCommand.action.mock.calls[0][0] as (options: { verbose?: boolean }) => Promise<void>;
+    await actionFn({ verbose: true });
 
     expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('[claude-code]'));
     expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('commands'));
@@ -304,12 +420,13 @@ describe('registerStatus', () => {
     const mockCommand = {
       command: jest.fn().mockReturnThis(),
       description: jest.fn().mockReturnThis(),
+      option: jest.fn().mockReturnThis(),
       action: jest.fn(),
     };
 
     registerStatus(mockCommand as unknown as import('commander').Command);
-    const actionFn = mockCommand.action.mock.calls[0][0] as () => Promise<void>;
-    await actionFn();
+    const actionFn = mockCommand.action.mock.calls[0][0] as (options: { verbose?: boolean }) => Promise<void>;
+    await actionFn({ verbose: true });
 
     expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('No enabled tools'));
   });

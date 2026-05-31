@@ -271,4 +271,39 @@ describe('config module', () => {
 
     await expect(readConfig()).resolves.toEqual(partialConfig);
   });
+
+  test('resolveActiveSkillsDir prefers explicit activeDir', () => {
+    const { resolveActiveSkillsDir } = loadConfigModule();
+    const config = {
+      source: '/registry',
+      tools: {},
+      activeDir: '/explicit-active',
+      cacheDir: '/cache',
+    };
+
+    expect(resolveActiveSkillsDir(config)).toBe('/explicit-active');
+  });
+
+  test('resolveActiveSkillsDir falls back to cacheDir active-skills', () => {
+    const { resolveActiveSkillsDir } = loadConfigModule();
+    const config = {
+      source: '/registry',
+      tools: {},
+      cacheDir: '/cache',
+    };
+
+    expect(resolveActiveSkillsDir(config)).toBe(path.join('/cache', 'active-skills'));
+  });
+
+  test('resolveActiveSkillsDir falls back to source cache active-skills', () => {
+    const { resolveActiveSkillsDir } = loadConfigModule();
+    const config = {
+      source: '/registry',
+      tools: {},
+    };
+
+    expect(resolveActiveSkillsDir(config)).toBe(
+      path.join('/registry', '.sync-spells-cache', 'active-skills'),
+    );
+  });
 });

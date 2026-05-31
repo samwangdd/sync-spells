@@ -59,7 +59,68 @@ spells push [path]
 spells status
 ```
 
-显示每个工具每条映射的链接状态。
+显示当前项目启用的 preset 和已链接的 skills。使用 `spells status --verbose` 查看全局工具映射 symlink 状态。
+
+## Skill 管理
+
+SyncSpells 只有四个日常概念：
+
+1. **Library**：所有可用 skill，位于 `skills-registry/`。
+2. **Global**：跨场景共享的 skill，物理存放在 `skills-registry/global/`。
+3. **Preset**：一组 skill 的工作模式，例如 `coding` 或 `lifeos`。
+4. **Project**：当前仓库使用哪个 preset。
+
+Profile 仍然作为向后兼容的存储格式存在；日常命令优先使用 Preset 语义。
+
+### 常用命令
+
+- `spells skill list [--category]`：查看 Library 中的 skills
+- `spells skill add <path>`：把 skill 加入 Library
+- `spells skill new <name>`：创建新 skill
+- `spells skill globalize <skill>`：移动 skill 到 `skills-registry/global/<name>`，并更新 profile/preset 引用
+- `spells preset [list|show]`：管理 presets
+- `spells use <preset>`：在当前项目启用 preset
+- `spells profiles [list|show]`：向后兼容的 profile 命令
+- `spells materialize <profile>`：从 profile 生成内部 skill cache
+- `spells doctor`：健康检查
+- `spells config [get|set]`：配置管理
+
+### 快速开始
+
+1. 查看可用 skills：
+   ```bash
+   spells skill list
+   ```
+
+2. 查看 presets：
+   ```bash
+   spells preset list
+   ```
+
+3. 在项目中启用 preset：
+   ```bash
+   cd /path/to/project
+   spells use coding
+   ```
+
+4. 查看状态：
+   ```bash
+   spells status
+   ```
+
+### Global Skills
+
+当某个 skill 应该同时给 LiveOS 和 Coding 使用时，可以把它全局化：
+
+```bash
+spells skill globalize <skill>
+```
+
+这个命令会把 skill 目录物理移动到 `skills-registry/global/<name>`，并把所有 profile/preset JSON 里的旧 Library 路径更新为新的 `global/<name>` 路径。如果裸 skill 名称匹配到多个 Library 路径，需要重新使用完整 Library 路径执行。
+
+### 实现说明
+
+`active-skills` 是内部生成缓存，用来在链接到项目 `.codex/skills` 和 `.claude/skills` 前 materialize preset。现有配置会继续兼容，但它不再出现在日常 quickstart 心智模型中。
 
 ## 本地开发
 
