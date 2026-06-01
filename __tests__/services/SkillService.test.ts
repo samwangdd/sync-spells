@@ -113,6 +113,39 @@ describe('SkillService', () => {
     await expect(fs.access(path.join(testDir, 'global', 'task-run'))).resolves.toBeUndefined();
   });
 
+  it('should localize a global skill and update profile references', async () => {
+    const profilesDir = path.join(testDir, 'profiles');
+    await fs.mkdir(profilesDir, { recursive: true });
+    await fs.writeFile(
+      path.join(profilesDir, 'lifeos.json'),
+      JSON.stringify({
+        name: 'lifeos',
+        skills: ['global/git-commit', 'projects/lifeos/task-run']
+      })
+    );
+
+    const config: Config = {
+      source: testDir,
+      tools: {},
+      profilesDir
+    };
+    service = new SkillService(config);
+
+    const result = await service.localizeSkill('git-commit', 'knowledge');
+
+    expect(result.from).toBe('global/git-commit');
+    expect(result.to).toBe('knowledge/git-commit');
+    await expect(fs.access(path.join(testDir, 'knowledge', 'git-commit', 'SKILL.md'))).resolves.toBeUndefined();
+    await expect(fs.access(path.join(testDir, 'global', 'git-commit'))).rejects.toThrow();
+
+    const profile = JSON.parse(await fs.readFile(path.join(profilesDir, 'lifeos.json'), 'utf8'));
+    expect(profile.skills).toEqual(['knowledge/git-commit', 'projects/lifeos/task-run']);
+  });
+
+  it('should fail localize when target category is global', async () => {
+    await expect(service.localizeSkill('git-commit', 'global')).rejects.toThrow('Local category cannot be global');
+  });
+
   it('should fail globalize for ambiguous skill names', async () => {
     await fs.mkdir(path.join(testDir, 'inbox', 'task-run'), { recursive: true });
     await fs.writeFile(

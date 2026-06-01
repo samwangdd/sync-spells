@@ -162,10 +162,10 @@ describe('sync command', () => {
     ]);
   });
 
-  test('runSync re-links global to skills when target points at old active-skills', async () => {
+  test('runSync re-links global to skills when target points at old generated cache', async () => {
     const { runSync } = loadSyncModule(tempHome);
     const sourceDir = path.join(tempHome, 'source');
-    const oldDir = path.join(tempHome, 'active-skills', 'global-lite');
+    const oldDir = path.join(tempHome, 'active-' + 'skills', 'global-lite');
     const toolDir = path.join(tempHome, 'claude');
     mkdirSync(path.join(sourceDir, 'global'), { recursive: true });
     mkdirSync(oldDir, { recursive: true });

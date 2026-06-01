@@ -9,12 +9,13 @@ export const registerSkill = (program: Command, getConfig: () => Promise<Config>
     '  add <path>          Add existing skill to Library\n' +
     '  new <name>          Create new skill skeleton\n' +
     '  list                List skills in Library\n' +
-    '  globalize <skill>   Move a skill into global'
+    '  globalize <skill>   Move a skill into global\n' +
+    '  localize <skill>    Move a global skill into a local category'
   );
 
   skillCmd
     .command('add <path>')
-    .option('--category <cat>', 'Category (global/code/lifeos/inbox)', 'inbox')
+    .option('--category <cat>', 'Category (global/knowledge/coding/workflow)', 'knowledge')
     .option('--target <path>', 'Target path in registry')
     .description('Add existing skill to registry')
     .action(async (sourcePath: string, options: { category: string; target?: string }) => {
@@ -34,7 +35,7 @@ export const registerSkill = (program: Command, getConfig: () => Promise<Config>
 
   skillCmd
     .command('new <name>')
-    .option('--category <cat>', 'Category (global/code/lifeos/inbox)', 'inbox')
+    .option('--category <cat>', 'Category (global/knowledge/coding/workflow)', 'knowledge')
     .description('Create new skill skeleton')
     .action(async (name: string, options: { category: string }) => {
       const config = await getConfig();
@@ -83,6 +84,28 @@ export const registerSkill = (program: Command, getConfig: () => Promise<Config>
       try {
         const result = await skillSvc.globalizeSkill(skill);
         console.log(`\n✓ Skill moved to Global: ${result.from} → ${result.to}`);
+        if (result.updatedProfiles.length > 0) {
+          console.log(`  Updated ${result.updatedProfiles.length} profile file(s)\n`);
+        } else {
+          console.log('  No profile references needed updates\n');
+        }
+      } catch (error) {
+        console.error(`\n❌ Error: ${error instanceof Error ? error.message : String(error)}\n`);
+        process.exit(1);
+      }
+    });
+
+  skillCmd
+    .command('localize <skill>')
+    .requiredOption('--to <category>', 'Target category (knowledge/coding/workflow)')
+    .description('Move a global skill into a local category and update profile references')
+    .action(async (skill: string, options: { to: string }) => {
+      const config = await getConfig();
+      const skillSvc = new SkillService(config);
+
+      try {
+        const result = await skillSvc.localizeSkill(skill, options.to as any);
+        console.log(`\n✓ Skill moved out of Global: ${result.from} → ${result.to}`);
         if (result.updatedProfiles.length > 0) {
           console.log(`  Updated ${result.updatedProfiles.length} profile file(s)\n`);
         } else {

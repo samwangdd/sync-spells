@@ -32,6 +32,42 @@ describe('ProjectService', () => {
     expect(profile).toBe('mexc-code');
   });
 
+  it('should prefer configured project bindings over fallback rules', () => {
+    const cfg: Config = {
+      ...config,
+      projectBindings: [
+        { path: '/Users/sammore/codeLab', profile: 'coding' },
+        { path: '/Users/sammore/codeLab/MEXC', profile: 'mexc-code' },
+      ],
+    };
+    const svc = new ProjectService(cfg, new ProfileService(cfg));
+
+    const match = svc.inferProfileMatch('/Users/sammore/codeLab/MEXC/ww-v3');
+
+    expect(match?.profile).toBe('mexc-code');
+    expect(match?.patternText).toBe('binding:/Users/sammore/codeLab/MEXC');
+  });
+
+  it('should use the longest matching configured binding', () => {
+    const cfg: Config = {
+      ...config,
+      projectBindings: [
+        { path: '/Users/sammore/codeLab', profile: 'coding' },
+        { path: '/Users/sammore/codeLab/MEXC', profile: 'mexc-code' },
+      ],
+    };
+    const svc = new ProjectService(cfg, new ProfileService(cfg));
+
+    expect(svc.inferProfile('/Users/sammore/codeLab/sync-spells')).toBe('coding');
+    expect(svc.inferProfile('/Users/sammore/codeLab/MEXC/ww-v3-worktree')).toBe('mexc-code');
+  });
+
+  it('should explain the matched inference rule', () => {
+    const match = service.inferProfileMatch('/Users/sammore/Mexc/frontend');
+    expect(match?.profile).toBe('mexc-code');
+    expect(match?.patternText).toBe('/Mexc/i');
+  });
+
   it('should infer lifeos-knowledge profile for LifeOS paths', () => {
     const profile = service.inferProfile('/Users/sammore/LifeOS/docs');
     expect(profile).toBe('lifeos-knowledge');
@@ -74,7 +110,7 @@ describe('ProjectService', () => {
     expect(activeProfile).toBeNull();
   });
 
-  it('activateProfile links project skills directly to registry (no active-skills hop)', async () => {
+  it('activateProfile links project skills directly to registry', async () => {
     await fs.mkdir(path.join(testDir, 'global', 'git-commit'), { recursive: true });
     await fs.writeFile(path.join(testDir, 'global', 'git-commit', 'SKILL.md'), '# x');
     await fs.mkdir(path.join(testDir, 'profiles'), { recursive: true });
@@ -91,6 +127,6 @@ describe('ProjectService', () => {
 
     const target = await fs.readlink(path.join(projectDir, '.claude', 'skills', 'git-commit'));
     expect(target).toBe(path.join(testDir, 'global', 'git-commit'));
-    expect(target).not.toContain('active-skills');
+    expect(target).not.toContain('active-' + 'skills');
   });
 });

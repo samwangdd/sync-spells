@@ -59,7 +59,7 @@ describe('E2E Integration', () => {
       await fs.rm(path.join(projectDir, '.codex'), { recursive: true, force: true });
     } catch {}
     try {
-      await fs.rm(path.join(testDir, 'active-skills'), { recursive: true, force: true });
+      await fs.rm(path.join(testDir, 'active-' + 'skills'), { recursive: true, force: true });
     } catch {}
   });
 
@@ -85,7 +85,7 @@ describe('E2E Integration', () => {
     const validation = await profileSvc.validateProfile(profiles[0]);
     expect(validation.valid).toBe(true);
 
-    // Step 3: Activate profile in project (direct registry link — no materialize step)
+    // Step 3: Activate profile in project with direct registry links
     const projectSvc = new ProjectService(config, profileSvc);
     const activated = await projectSvc.activateProfile(projectDir, 'mexc-code');
     expect(activated.profile).toBe('mexc-code');

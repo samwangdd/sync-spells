@@ -1,7 +1,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { ProjectActivationResult, InferenceRule } from '../types';
-import { Config } from '../lib/config';
+import { InferenceMatch, ProjectActivationResult, InferenceRule } from '../types';
+import { Config, expandHome } from '../lib/config';
 import { ProfileNotFoundError } from '../lib/errors';
 import { ProfileService } from './ProfileService';
 
@@ -23,12 +23,44 @@ export class ProjectService {
   }
 
   inferProfile(projectPath: string): string | null {
+    return this.inferProfileMatch(projectPath)?.profile ?? null;
+  }
+
+  inferProfileMatch(projectPath: string): InferenceMatch | null {
+    const binding = this.matchProjectBinding(projectPath);
+    if (binding) {
+      return {
+        pattern: /.*/,
+        profile: binding.profile,
+        patternText: `binding:${binding.path}`,
+        bindingPath: binding.path,
+      };
+    }
+
     for (const rule of this.inferenceRules) {
       if (rule.pattern.test(projectPath)) {
-        return rule.profile;
+        return { ...rule, patternText: rule.pattern.toString() };
       }
     }
     return null;
+  }
+
+  private matchProjectBinding(projectPath: string): { path: string; profile: string } | null {
+    const bindings = this.config.projectBindings || [];
+    const normalizedProjectPath = path.resolve(expandHome(projectPath));
+
+    const matches = bindings
+      .map(binding => ({
+        path: path.resolve(expandHome(binding.path)),
+        profile: binding.profile,
+      }))
+      .filter(binding => {
+        const relative = path.relative(binding.path, normalizedProjectPath);
+        return relative === '' || (!!relative && !relative.startsWith('..') && !path.isAbsolute(relative));
+      })
+      .sort((a, b) => b.path.length - a.path.length);
+
+    return matches[0] || null;
   }
 
   async activateProfile(

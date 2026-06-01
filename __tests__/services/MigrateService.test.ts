@@ -19,6 +19,9 @@ describe('MigrateService', () => {
       'workflows/marathon',
       'projects/lifeos/task-run',
       'projects/lifeos/llm-wiki',
+      'external/lokalise-skill',
+      'inbox/k8s-migration-planner',
+      'inbox/twitter-style',
       'code',
       'root-files',
     ]) {
@@ -59,14 +62,14 @@ describe('MigrateService', () => {
       fs.access(path.join(dir, 'coding', 'web-perf'))
     ).resolves.toBeUndefined();
     await expect(
-      fs.access(path.join(dir, 'collaboration', 'lark-doc'))
+      fs.access(path.join(dir, 'workflow', 'lark-doc'))
     ).resolves.toBeUndefined();
     await expect(
       fs.access(path.join(dir, 'workflow', 'marathon'))
     ).resolves.toBeUndefined();
     await expect(
-      fs.access(path.join(dir, 'workflow', 'kickoff'))
-    ).resolves.toBeUndefined(); // mexc flow
+      fs.access(path.join(dir, 'coding', 'kickoff'))
+    ).resolves.toBeUndefined(); // mexc dev project skill
     await expect(
       fs.access(path.join(dir, 'coding', 'sensors-impl'))
     ).resolves.toBeUndefined(); // mexc tech
@@ -74,11 +77,14 @@ describe('MigrateService', () => {
       fs.access(path.join(dir, 'workflow', 'task-run'))
     ).resolves.toBeUndefined(); // lifeos flow
     await expect(
-      fs.access(path.join(dir, 'coding', 'llm-wiki'))
-    ).resolves.toBeUndefined(); // lifeos tech
+      fs.access(path.join(dir, 'knowledge', 'llm-wiki'))
+    ).resolves.toBeUndefined(); // lifeos knowledge
     await expect(
       fs.access(path.join(dir, 'code'))
     ).rejects.toBeTruthy(); // empty shell removed
+    await expect(
+      fs.access(path.join(dir, 'inbox', 'k8s-migration-planner'))
+    ).resolves.toBeUndefined(); // inactive registry area preserved
 
     const prof = JSON.parse(
       await fs.readFile(path.join(dir, 'profiles', 'mexc.json'), 'utf8')
@@ -87,8 +93,8 @@ describe('MigrateService', () => {
     expect(prof.extras).toEqual(
       expect.arrayContaining([
         'coding/web-perf',
-        'collaboration/lark-doc',
-        'workflow/kickoff',
+        'workflow/lark-doc',
+        'coding/kickoff',
         'coding/sensors-impl',
       ])
     );
@@ -134,9 +140,9 @@ describe('MigrateService', () => {
       );
     });
 
-    it('maps domains/lark/* to collaboration/*', () => {
+    it('maps domains/lark/* to workflow/*', () => {
       expect(svc.mapOldToNew('domains/lark/lark-doc')).toBe(
-        'collaboration/lark-doc'
+        'workflow/lark-doc'
       );
     });
 
@@ -156,21 +162,18 @@ describe('MigrateService', () => {
       );
     });
 
-    it('maps projects/lifeos/llm-wiki to coding/llm-wiki', () => {
+    it('maps projects/lifeos/llm-wiki to knowledge/llm-wiki', () => {
       expect(svc.mapOldToNew('projects/lifeos/llm-wiki')).toBe(
-        'coding/llm-wiki'
+        'knowledge/llm-wiki'
       );
     });
 
-    it('maps mexc flow skills to workflow/*', () => {
-      expect(svc.mapOldToNew('projects/mexc/kickoff')).toBe('workflow/kickoff');
-      expect(svc.mapOldToNew('projects/mexc/pre-qa')).toBe('workflow/pre-qa');
+    it('maps mexc skills to coding/*', () => {
+      expect(svc.mapOldToNew('projects/mexc/kickoff')).toBe('coding/kickoff');
+      expect(svc.mapOldToNew('projects/mexc/pre-qa')).toBe('coding/pre-qa');
       expect(svc.mapOldToNew('projects/mexc/submit-review')).toBe(
-        'workflow/submit-review'
+        'coding/submit-review'
       );
-    });
-
-    it('maps mexc tech skills to coding/*', () => {
       expect(svc.mapOldToNew('projects/mexc/sensors-impl')).toBe(
         'coding/sensors-impl'
       );
@@ -180,12 +183,14 @@ describe('MigrateService', () => {
       expect(svc.mapOldToNew('global/git-commit')).toBeNull();
     });
 
-    it('returns null for external/* (unchanged)', () => {
-      expect(svc.mapOldToNew('external/some-skill')).toBeNull();
+    it('maps external/* to workflow/*', () => {
+      expect(svc.mapOldToNew('external/some-skill')).toBe('workflow/some-skill');
     });
 
-    it('returns null for inbox/* (unchanged)', () => {
-      expect(svc.mapOldToNew('inbox/draft-skill')).toBeNull();
+    it('keeps inbox/* unchanged as an inactive registry area', () => {
+      expect(svc.mapOldToNew('inbox/k8s-migration-planner')).toBeNull();
+      expect(svc.mapOldToNew('inbox/twitter-style')).toBeNull();
+      expect(svc.mapOldToNew('inbox/jira-mcp-setup')).toBeNull();
     });
   });
 
@@ -227,5 +232,50 @@ describe('MigrateService', () => {
     expect(prof.categories).toEqual(['coding']);
     expect(prof.extras).toEqual(['coding/some-skill']);
     expect(prof.skills).toBeUndefined();
+  });
+
+  it('promotes known project presets to category profiles', async () => {
+    await fs.writeFile(
+      path.join(dir, 'profiles', 'mexc-code.json'),
+      JSON.stringify({
+        name: 'mexc-code',
+        skills: [
+          'projects/mexc/kickoff',
+          'projects/mexc/sensors-impl',
+          'domains/lark/lark-doc',
+        ],
+      })
+    );
+    await fs.writeFile(
+      path.join(dir, 'profiles', 'lifeos-knowledge.json'),
+      JSON.stringify({
+        name: 'lifeos-knowledge',
+        skills: [
+          'projects/lifeos/llm-wiki',
+          'projects/lifeos/task-run',
+          'projects/mexc/kickoff',
+        ],
+      })
+    );
+
+    await new MigrateService(cfg).migrate({
+      dryRun: false,
+      stamp: '20260531-000000',
+    });
+
+    const mexc = JSON.parse(
+      await fs.readFile(path.join(dir, 'profiles', 'mexc-code.json'), 'utf8')
+    );
+    expect(mexc.categories).toEqual(['coding']);
+    expect(mexc.extras).toEqual(['workflow/lark-doc']);
+
+    const lifeos = JSON.parse(
+      await fs.readFile(
+        path.join(dir, 'profiles', 'lifeos-knowledge.json'),
+        'utf8'
+      )
+    );
+    expect(lifeos.categories).toEqual(['knowledge', 'workflow']);
+    expect(lifeos.extras).toEqual(['coding/kickoff']);
   });
 });

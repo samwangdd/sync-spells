@@ -3,6 +3,8 @@ import * as fs from 'fs/promises';
 import { Command } from 'commander';
 import { readConfig, expandHome } from '../lib/config';
 import { checkSymlinkState, SymlinkState } from '../lib/symlink';
+import { ProfileService } from '../services/ProfileService';
+import { ProjectService } from '../services/ProjectService';
 
 interface StatusEntry {
   tool: string;
@@ -19,6 +21,9 @@ interface ProjectStatusTarget {
 
 interface ProjectStatus {
   preset: string | null;
+  presetSource: 'stored' | 'legacy' | 'none';
+  inferredPreset: string | null;
+  inferencePattern: string | null;
   linkedSkills: number;
   targets: ProjectStatusTarget[];
 }
@@ -61,14 +66,25 @@ const countSkillEntries = async (dir: string): Promise<{ exists: boolean; names:
 
 export const runProjectStatus = async (projectPath = process.cwd()): Promise<ProjectStatus> => {
   let preset: string | null = null;
+  let presetSource: ProjectStatus['presetSource'] = 'none';
 
   try {
     const content = await fs.readFile(path.join(projectPath, '.sync-spells.json'), 'utf8');
     const state = JSON.parse(content);
-    preset = state.activePreset || state.activeProfile || null;
+    if (state.activePreset) {
+      preset = state.activePreset;
+      presetSource = 'stored';
+    } else if (state.activeProfile) {
+      preset = state.activeProfile;
+      presetSource = 'legacy';
+    }
   } catch {
     preset = null;
   }
+
+  const config = await readConfig();
+  const inferred = new ProjectService(config, new ProfileService(config))
+    .inferProfileMatch(projectPath);
 
   const targetPaths = ['.codex/skills', '.claude/skills'];
   const targets: ProjectStatusTarget[] = [];
@@ -88,6 +104,9 @@ export const runProjectStatus = async (projectPath = process.cwd()): Promise<Pro
 
   return {
     preset,
+    presetSource,
+    inferredPreset: inferred?.profile ?? null,
+    inferencePattern: inferred?.patternText ?? null,
     linkedSkills: skillNames.size,
     targets,
   };
@@ -102,6 +121,18 @@ export const registerStatus = (program: Command): void => {
     .option('--verbose', 'Show global tool mapping status')
     .action(async (options?: { verbose?: boolean }) => {
       if (options?.verbose) {
+        const projectStatus = await runProjectStatus();
+        if (projectStatus.preset) {
+          const label = projectStatus.presetSource === 'legacy' ? 'legacy activeProfile' : 'activePreset';
+          console.log(`Project preset: ${projectStatus.preset} (${label})`);
+        } else if (projectStatus.inferredPreset) {
+          console.log('Project preset: none active');
+          console.log(`Inferred preset: ${projectStatus.inferredPreset} (${projectStatus.inferencePattern})`);
+        } else {
+          console.log('Project preset: none active');
+          console.log('Inferred preset: none');
+        }
+
         const entries = await runStatus();
         for (const entry of entries) {
           console.log(`  [${entry.tool}] ${entry.from} → ${entry.to}: ${entry.state}`);
@@ -115,7 +146,7 @@ export const registerStatus = (program: Command): void => {
       const status = await runProjectStatus();
       if (!status.preset) {
         console.log('No preset active for this project.');
-        console.log('Run `spells use <preset>` to activate one.');
+        console.log('Run `spells use [preset]` to activate one.');
         return;
       }
 

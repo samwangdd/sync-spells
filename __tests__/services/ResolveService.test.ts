@@ -10,7 +10,7 @@ describe('ResolveService', () => {
   let dir: string; let cfg: Config;
   beforeEach(async () => {
     dir = `/tmp/resolve-${Date.now()}`;
-    for (const s of ['global/git-commit','coding/web-perf','coding/scss','collaboration/lark-doc','workflow/task-run'])
+    for (const s of ['global/git-commit','coding/web-perf','coding/scss','collaboration/lark-doc','workflow/task-run','inbox/debug-5'])
       await fs.mkdir(path.join(dir, s), { recursive: true });
     await fs.mkdir(path.join(dir, 'profiles'), { recursive: true });
     await fs.writeFile(path.join(dir,'profiles','mexc.json'),
@@ -21,6 +21,8 @@ describe('ResolveService', () => {
       JSON.stringify({ name:'child', extends:'base', categories:['coding'] }));
     await fs.writeFile(path.join(dir,'profiles','legacy.json'),
       JSON.stringify({ name:'legacy', skills:['global/git-commit','coding/scss'] }));
+    await fs.writeFile(path.join(dir,'profiles','parked.json'),
+      JSON.stringify({ name:'parked', categories:['coding','inbox'], extras:['inbox/debug-5'] }));
     cfg = { source: dir, tools: {}, profilesDir: path.join(dir,'profiles') };
   });
   afterEach(async () => { await fs.rm(dir, { recursive: true, force: true }); });
@@ -38,6 +40,11 @@ describe('ResolveService', () => {
   it('legacy skills filter out global', async () => {
     const r = await mk().resolve('legacy');
     expect(r.skills).toEqual(['coding/scss']);
+  });
+  it('filters inbox from category and extras resolution', async () => {
+    const r = await mk().resolve('parked');
+    expect(r.skills.sort()).toEqual(['coding/scss','coding/web-perf'].sort());
+    expect(r.skills.some(s => s.startsWith('inbox/'))).toBe(false);
   });
   it('throws on circular extends', async () => {
     await fs.writeFile(path.join(dir,'profiles','a.json'), JSON.stringify({name:'a',extends:'b'}));

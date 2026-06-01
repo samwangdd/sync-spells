@@ -199,6 +199,7 @@ describe('config module', () => {
       },
       defaultProfile: 'work',
       profilesDir: '~/.sync-spells/profiles',
+      projectBindings: [{ path: '/Users/sammore/codeLab', profile: 'coding' }],
     };
 
     const configPath = getConfigPath();
@@ -221,6 +222,7 @@ describe('config module', () => {
       },
       defaultProfile: 'personal',
       profilesDir: '~/.sync-spells/profiles',
+      projectBindings: [{ path: '/Users/sammore/codeLab/MEXC', profile: 'mexc-code' }],
     };
 
     await writeConfig(configWithProfiles);

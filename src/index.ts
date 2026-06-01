@@ -10,6 +10,8 @@ import { registerSkill } from './commands/skill';
 import { registerDoctor } from './commands/doctor';
 import { registerConfig } from './commands/config';
 import { registerResolve } from './commands/resolve';
+import { registerMigrate } from './commands/migrate';
+import { registerBind } from './commands/bind';
 import { readConfig } from './lib/config';
 
 const program = new Command();
@@ -30,5 +32,7 @@ registerSkill(program, readConfig);
 registerDoctor(program, readConfig);
 registerConfig(program);
 registerResolve(program, readConfig);
+registerMigrate(program, readConfig);
+registerBind(program);
 
 program.parse(process.argv);

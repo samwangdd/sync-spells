@@ -12,27 +12,10 @@ export interface MigrateReport {
 }
 
 /**
- * mexc skills that go to workflow/ (all others go to coding/).
- */
-const MEXC_FLOW_SKILLS = new Set([
-  'kickoff',
-  'pre-qa',
-  'submit-review',
-  'worktree-init',
-  'jira-handoff',
-  'jira-create-improvement',
-  'jira-create-subtask',
-  'review-prd',
-  'page-removal',
-  'bumping-version',
-]);
-
-/**
  * Map an old registry-relative path (e.g. "domains/frontend/web-perf") to its
  * new registry-relative path (e.g. "coding/web-perf").
  *
- * Returns null when the path is unchanged / should not be moved
- * (global/*, external/*, inbox/*).
+ * Returns null when the path is unchanged / should not be moved (global/*).
  */
 export function mapOldToNew(oldPath: string): string | null {
   const parts = oldPath.split('/');
@@ -41,14 +24,17 @@ export function mapOldToNew(oldPath: string): string | null {
   const [top, sub, skill] = parts;
 
   // ── unchanged categories ──────────────────────────────────────────────────
-  if (top === 'global' || top === 'external' || top === 'inbox') {
+  if (top === 'global') {
     return null;
   }
+
+  if (top === 'external') return `workflow/${sub}`;
+  if (top === 'inbox') return null;
 
   // ── domains/* ────────────────────────────────────────────────────────────
   if (top === 'domains') {
     if (!skill) return null; // only 2-segment path (the container itself) — handled elsewhere
-    if (sub === 'lark') return `collaboration/${skill}`;
+    if (sub === 'lark') return `workflow/${skill}`;
     // frontend, figma, and any other domain → coding
     return `coding/${skill}`;
   }
@@ -62,19 +48,39 @@ export function mapOldToNew(oldPath: string): string | null {
   if (top === 'projects') {
     if (!skill) return null;
     if (sub === 'omf' || sub === 'lifeos') {
-      // special case: lifeos/llm-wiki → coding
-      if (sub === 'lifeos' && skill === 'llm-wiki') return `coding/${skill}`;
+      // special case: lifeos/llm-wiki → knowledge
+      if (sub === 'lifeos' && skill === 'llm-wiki') return `knowledge/${skill}`;
       return `workflow/${skill}`;
     }
-    if (sub === 'mexc') {
-      return MEXC_FLOW_SKILLS.has(skill) ? `workflow/${skill}` : `coding/${skill}`;
-    }
+    if (sub === 'mexc') return `coding/${skill}`;
     // unknown project — default to coding
     return `coding/${skill}`;
   }
 
   return null;
 }
+
+const PROFILE_CATEGORY_PRESETS: Record<string, string[]> = {
+  all: ['coding', 'knowledge', 'workflow'],
+  'mexc-code': ['coding'],
+  'lifeos-knowledge': ['knowledge', 'workflow'],
+};
+
+const applyProfileCategoryPreset = (
+  profileName: string,
+  extras: string[]
+): { categories?: string[]; extras: string[] } => {
+  const categories = PROFILE_CATEGORY_PRESETS[profileName];
+  if (!categories) return { extras };
+
+  const categorySet = new Set(categories);
+  return {
+    categories,
+    extras: extras.filter(
+      (skillPath) => !categorySet.has(skillPath.split('/')[0] ?? '')
+    ),
+  };
+};
 
 /**
  * Old top-level containers that get restructured. Each entry is
@@ -92,10 +98,10 @@ const MIGRATION_CONTAINERS: { container: string; mapChild: (child: string) => st
     container: 'domains/figma',
     mapChild: (skill) => `coding/${skill}`,
   },
-  // domains/lark/<skill> → collaboration/<skill>
+  // domains/lark/<skill> → workflow/<skill>
   {
     container: 'domains/lark',
-    mapChild: (skill) => `collaboration/${skill}`,
+    mapChild: (skill) => `workflow/${skill}`,
   },
   // workflows/<skill> → workflow/<skill>
   {
@@ -107,17 +113,21 @@ const MIGRATION_CONTAINERS: { container: string; mapChild: (child: string) => st
     container: 'projects/omf',
     mapChild: (skill) => `workflow/${skill}`,
   },
-  // projects/lifeos/<skill> → workflow/<skill>  (except llm-wiki → coding)
+  // projects/lifeos/<skill> → workflow/<skill>  (except llm-wiki → knowledge)
   {
     container: 'projects/lifeos',
     mapChild: (skill) =>
-      skill === 'llm-wiki' ? `coding/${skill}` : `workflow/${skill}`,
+      skill === 'llm-wiki' ? `knowledge/${skill}` : `workflow/${skill}`,
   },
-  // projects/mexc/<skill> → coding or workflow depending on MEXC_FLOW_SKILLS
+  // projects/mexc/<skill> → coding/<skill>
   {
     container: 'projects/mexc',
-    mapChild: (skill) =>
-      MEXC_FLOW_SKILLS.has(skill) ? `workflow/${skill}` : `coding/${skill}`,
+    mapChild: (skill) => `coding/${skill}`,
+  },
+  // external/<skill> → workflow/<skill>
+  {
+    container: 'external',
+    mapChild: (skill) => `workflow/${skill}`,
   },
 ];
 
@@ -125,7 +135,7 @@ const MIGRATION_CONTAINERS: { container: string; mapChild: (child: string) => st
 const EMPTY_SHELLS = ['code', 'root-files'];
 
 /** Old top-level dirs to remove if empty after migration. */
-const OLD_TOPS = ['domains', 'workflows', 'projects'];
+const OLD_TOPS = ['domains', 'workflows', 'projects', 'external'];
 
 export class MigrateService {
   constructor(private config: Config) {}
@@ -230,13 +240,20 @@ export class MigrateService {
           (byCategory[cat] ??= []).push(path.basename(resolved));
         }
 
+        const promoted = applyProfileCategoryPreset(parsed.name as string, extras);
         const newProfile: Record<string, unknown> = {
           name: parsed.name,
-          extras,
         };
+        if (promoted.categories) newProfile.categories = promoted.categories;
+        if (promoted.extras.length > 0) newProfile.extras = promoted.extras;
         // preserve any other fields (description, extends, etc.) except skills
         for (const [k, v] of Object.entries(parsed)) {
-          if (k !== 'name' && k !== 'skills' && k !== 'extras') {
+          if (
+            k !== 'name' &&
+            k !== 'skills' &&
+            k !== 'extras' &&
+            k !== 'categories'
+          ) {
             newProfile[k] = v;
           }
         }

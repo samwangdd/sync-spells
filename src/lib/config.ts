@@ -18,6 +18,7 @@ export interface Config {
   tools: Record<string, ToolConfig>;
   defaultProfile?: string;
   profilesDir?: string;
+  projectBindings?: { path: string; profile: string }[];
 }
 
 const isToolMapping = (value: unknown): value is ToolMapping => {

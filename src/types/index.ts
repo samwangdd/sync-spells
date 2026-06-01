@@ -37,3 +37,13 @@ export interface InferenceRule {
   pattern: RegExp;
   profile: string;
 }
+
+export interface InferenceMatch extends InferenceRule {
+  patternText: string;
+  bindingPath?: string;
+}
+
+export interface ProjectBinding {
+  path: string;
+  profile: string;
+}

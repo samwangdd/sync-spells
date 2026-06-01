@@ -53,7 +53,7 @@ export class SkillService {
   }
 
   private async listCategories(registryDir: string): Promise<SkillCategory[]> {
-    const preferred = ['global', 'coding', 'collaboration', 'workflow', 'external', 'inbox'];
+    const preferred = ['global', 'knowledge', 'coding', 'workflow', 'inbox'];
     const entries = await fs.readdir(registryDir, { withFileTypes: true }).catch(() => []);
     const found = entries
       .filter(entry => entry.isDirectory())
@@ -107,6 +107,46 @@ export class SkillService {
 
     if (await this.fileExists(targetPath)) {
       throw new Error(`Global skill already exists: ${to}`);
+    }
+
+    const updates = await this.prepareProfileReferenceUpdates(from, to);
+
+    await fs.mkdir(path.dirname(targetPath), { recursive: true });
+    await fs.rename(sourcePath, targetPath);
+
+    const updatedProfiles: string[] = [];
+    for (const update of updates) {
+      await fs.writeFile(update.filePath, update.content, 'utf8');
+      updatedProfiles.push(update.filePath);
+    }
+
+    return { from, to, updatedProfiles };
+  }
+
+  async localizeSkill(skillPathOrName: string, category: SkillCategory): Promise<{
+    from: string;
+    to: string;
+    updatedProfiles: string[];
+  }> {
+    if (!category || category === 'global') {
+      throw new Error('Local category cannot be global');
+    }
+    if (category.includes('/') || category.includes('..')) {
+      throw new Error(`Invalid local category: ${category}`);
+    }
+
+    const from = await this.resolveSkillPath(skillPathOrName);
+    if (!from.startsWith('global/')) {
+      throw new Error(`Skill is not global: ${from}`);
+    }
+
+    const skillName = path.basename(from);
+    const to = `${category}/${skillName}`;
+    const sourcePath = ensureWithin(this.config.source, from);
+    const targetPath = ensureWithin(this.config.source, to);
+
+    if (await this.fileExists(targetPath)) {
+      throw new Error(`Local skill already exists: ${to}`);
     }
 
     const updates = await this.prepareProfileReferenceUpdates(from, to);

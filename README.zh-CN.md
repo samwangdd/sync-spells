@@ -10,10 +10,7 @@
 - **基于 symlink 同步** — 源目录中的变更即时反映到所有工具
 - **自动备份** — 替换真实目录前会安全备份
 - **支持的工具**：
-  - **Claude Code** — 同步 `commands`、`skills` 和 `agents`
-  - **Cursor** — 同步 `commands`
-  - **Codex** — 同步 `commands`
-  - **Kiro** — 同步 `commands`
+  - **Claude Code**、**Agents**、**Codex**、**Cursor**、**Kiro** — 同步全局 `skills`
 
 ## 安装
 
@@ -63,12 +60,13 @@ spells status
 
 ## Skill 管理
 
-SyncSpells 只有四个日常概念：
+SyncSpells 只有五个日常概念：
 
 1. **Library**：所有可用 skill，位于 `skills-registry/`。
 2. **Global**：跨场景共享的 skill，物理存放在 `skills-registry/global/`。
 3. **Preset**：一组 skill 的工作模式，例如 `coding` 或 `lifeos`。
-4. **Project**：当前仓库使用哪个 preset。
+4. **Binding**：某个目录树默认使用哪个 preset。
+5. **Project**：当前仓库使用哪个 preset。
 
 Profile 仍然作为向后兼容的存储格式存在；日常命令优先使用 Preset 语义。
 
@@ -78,10 +76,13 @@ Profile 仍然作为向后兼容的存储格式存在；日常命令优先使用
 - `spells skill add <path>`：把 skill 加入 Library
 - `spells skill new <name>`：创建新 skill
 - `spells skill globalize <skill>`：移动 skill 到 `skills-registry/global/<name>`，并更新 profile/preset 引用
+- `spells skill localize <skill> --to <category>`：把全局 skill 移回 `knowledge`、`coding`、`workflow` 或 `inbox`
+- `spells bind [list|add|remove]`：管理目录树到 preset 的默认绑定
 - `spells preset [list|show]`：管理 presets
-- `spells use <preset>`：在当前项目启用 preset
+- `spells use [preset]`：在当前项目启用 preset
+- `spells resolve [preset]`：查看某个 preset 会解析出哪些项目级 skills
+- `spells migrate [--dry-run]`：把既有 registry 转成当前分类结构
 - `spells profiles [list|show]`：向后兼容的 profile 命令
-- `spells materialize <profile>`：从 profile 生成内部 skill cache
 - `spells doctor`：健康检查
 - `spells config [get|set]`：配置管理
 
@@ -100,7 +101,7 @@ Profile 仍然作为向后兼容的存储格式存在；日常命令优先使用
 3. 在项目中启用 preset：
    ```bash
    cd /path/to/project
-   spells use coding
+   spells use
    ```
 
 4. 查看状态：
@@ -118,9 +119,18 @@ spells skill globalize <skill>
 
 这个命令会把 skill 目录物理移动到 `skills-registry/global/<name>`，并把所有 profile/preset JSON 里的旧 Library 路径更新为新的 `global/<name>` 路径。如果裸 skill 名称匹配到多个 Library 路径，需要重新使用完整 Library 路径执行。
 
+当某个全局 skill 应该回到特定分类时，使用 `localize`：
+
+```bash
+spells skill localize <skill> --to knowledge
+spells skill localize <skill> --to coding
+spells skill localize <skill> --to workflow
+spells skill localize <skill> --to inbox
+```
+
 ### 实现说明
 
-`active-skills` 是内部生成缓存，用来在链接到项目 `.codex/skills` 和 `.claude/skills` 前 materialize preset。现有配置会继续兼容，但它不再出现在日常 quickstart 心智模型中。
+`spells sync` 会把 `skills-registry/global/` 中的全局 skills 链接到每个已启用工具。`spells use [preset]` 会解析显式 preset 或当前目录命中的最长路径 binding，并把项目级 skills 从 registry 直接链接到 `.codex/skills` 和 `.claude/skills`；全局和 inbox skills 会被刻意排除在项目级链接之外。
 
 ## 本地开发
 

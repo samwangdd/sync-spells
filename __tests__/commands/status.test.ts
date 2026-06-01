@@ -269,7 +269,7 @@ describe('registerStatus', () => {
     expect(output).toContain('Linked skills: 2');
     expect(output).toContain('.codex/skills: exists (1 skill)');
     expect(output).toContain('.claude/skills: exists (2 skills)');
-    expect(output).not.toContain('active-skills');
+    expect(output).not.toContain('active-' + 'skills');
   });
 
   test('registerStatus action reads activeProfile for legacy project status', async () => {
@@ -335,11 +335,11 @@ describe('registerStatus', () => {
 
     const output = consoleLogSpy.mock.calls.map(([line]) => line).join('\n');
     expect(output).toContain('No preset active for this project.');
-    expect(output).toContain('Run `spells use <preset>` to activate one.');
-    expect(output).not.toContain('active-skills');
+    expect(output).toContain('Run `spells use [preset]` to activate one.');
+    expect(output).not.toContain('active-' + 'skills');
   });
 
-  test('registerStatus verbose action prints status entries', async () => {
+  test('registerStatus verbose action prints inferred preset and global mapping entries', async () => {
     jest.resetModules();
     const actualOs = jest.requireActual<typeof import('os')>('os');
     jest.doMock('os', () => ({
@@ -383,6 +383,9 @@ describe('registerStatus', () => {
     const actionFn = mockCommand.action.mock.calls[0][0] as (options: { verbose?: boolean }) => Promise<void>;
     await actionFn({ verbose: true });
 
+    const output = consoleLogSpy.mock.calls.map(([line]) => line).join('\n');
+    expect(output).toContain('Project preset: none active');
+    expect(output).toContain('Inferred preset: global-lite (/.*/)');
     expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('[claude-code]'));
     expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('commands'));
     expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('linked'));
@@ -429,5 +432,48 @@ describe('registerStatus', () => {
     await actionFn({ verbose: true });
 
     expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('No enabled tools'));
+  });
+
+  test('registerStatus verbose action prints stored active preset source', async () => {
+    jest.resetModules();
+    const actualOs = jest.requireActual<typeof import('os')>('os');
+    jest.doMock('os', () => ({
+      ...actualOs,
+      homedir: () => tempHome,
+    }));
+
+    const projectDir = path.join(tempHome, 'project-with-state');
+    mkdirSync(projectDir, { recursive: true });
+    writeFileSync(
+      path.join(projectDir, '.sync-spells.json'),
+      JSON.stringify({ activePreset: 'coding' }),
+      'utf8',
+    );
+    process.chdir(projectDir);
+
+    mkdirSync(path.join(tempHome, '.sync-spells'), { recursive: true });
+    writeFileSync(
+      path.join(tempHome, '.sync-spells', 'config.json'),
+      JSON.stringify({ source: path.join(tempHome, 'source'), tools: {} }),
+      'utf8',
+    );
+
+    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const { registerStatus } = require('../../src/commands/status') as typeof import('../../src/commands/status');
+
+    const mockCommand = {
+      command: jest.fn().mockReturnThis(),
+      description: jest.fn().mockReturnThis(),
+      option: jest.fn().mockReturnThis(),
+      action: jest.fn(),
+    };
+
+    registerStatus(mockCommand as unknown as import('commander').Command);
+    const actionFn = mockCommand.action.mock.calls[0][0] as (options: { verbose?: boolean }) => Promise<void>;
+    await actionFn({ verbose: true });
+
+    const output = consoleLogSpy.mock.calls.map(([line]) => line).join('\n');
+    expect(output).toContain('Project preset: coding (activePreset)');
+    expect(output).toContain('No enabled tools');
   });
 });

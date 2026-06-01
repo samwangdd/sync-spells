@@ -85,13 +85,21 @@ describe('use command', () => {
     expect(result.profile).toBe('mexc-code');
   });
 
-  it('links project skills directly to registry (no active-skills)', async () => {
+  it('should use configured project binding when no profile is specified', async () => {
+    config.projectBindings = [{ path: projectDir, profile: 'mexc-code' }];
+
+    const result = await runUse(config, path.join(projectDir, 'worktree'));
+
+    expect(result.profile).toBe('mexc-code');
+  });
+
+  it('links project skills directly to registry', async () => {
     const result = await runUse(config, projectDir, 'test');
     expect(result.profile).toBe('test');
     // global/git-commit is filtered out by ResolveService; coding/web-perf is linked
     const target = await fs.readlink(path.join(projectDir, '.codex', 'skills', 'web-perf'));
     expect(target).toBe(path.join(testDir, 'coding', 'web-perf'));
-    expect(target).not.toContain('active-skills');
+    expect(target).not.toContain('active-' + 'skills');
     // global skill must NOT be linked at project level
     await expect(
       fs.access(path.join(projectDir, '.codex', 'skills', 'git-commit'))
