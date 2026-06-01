@@ -53,6 +53,22 @@ runUse(config, repoPath, preset)
 
 No distribution path may bypass `ResolveService`.
 
+## MCP Distribution
+
+MCP distribution follows the same global/project split but uses `mcp-registry/`, not `skills-registry/`.
+
+```text
+Tool-global MCP:
+  spells mcp sync --global -> mcp-registry/global.json -> tool global config, merge-owned entries only
+
+Repo-local MCP:
+  spells mcp use [preset] -> mcp-registry/global.json + mcp-registry/presets/<preset>.json -> repo MCP target files
+```
+
+Global MCP writes are merge operations. sync-spells records owned target entries in `~/.sync-spells/mcp-manifest.json` and preserves entries outside that manifest.
+
+Worktrees inherit preset selection through longest path bindings, but MCP target files are generated into each worktree root.
+
 ## Status and Inference
 
 `spells status` shows the active project preset when `.sync-spells.json` exists.

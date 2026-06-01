@@ -86,6 +86,20 @@ Profiles still exist as the backward-compatible storage format for presets.
 - `spells doctor` - Health check
 - `spells config [get|set]` - Configuration management
 
+## MCP Management
+
+MCP configuration is managed separately from skills. Put shared MCP servers in `mcp-registry/global.json` and project presets in `mcp-registry/presets/<preset>.json`.
+
+```bash
+spells mcp status
+spells mcp sync --global --dry-run
+spells mcp sync --global
+spells mcp use coding --dry-run
+spells mcp use coding
+```
+
+Global MCP sync merges only sync-spells-owned server entries into Claude Code, Cursor, and Codex target files. Existing user-owned settings are preserved and same-name conflicts are refused unless explicitly adopted.
+
 ### Quick Start
 
 1. Review available skills:

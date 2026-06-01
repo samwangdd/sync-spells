@@ -86,6 +86,20 @@ Profile 仍然作为向后兼容的存储格式存在；日常命令优先使用
 - `spells doctor`：健康检查
 - `spells config [get|set]`：配置管理
 
+## MCP 管理
+
+MCP 配置和 skills 分开管理。共享 MCP 放在 `mcp-registry/global.json`，项目 preset 放在 `mcp-registry/presets/<preset>.json`。
+
+```bash
+spells mcp status
+spells mcp sync --global --dry-run
+spells mcp sync --global
+spells mcp use coding --dry-run
+spells mcp use coding
+```
+
+全局 MCP 同步只合并 sync-spells 托管的 server 条目到 Claude Code、Cursor 和 Codex 的目标配置文件。已有的用户配置会保留；同名但未托管的条目默认视为冲突，不会覆盖。
+
 ### 快速开始
 
 1. 查看可用 skills：
