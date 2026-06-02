@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import { readConfig, expandHome } from '../lib/config';
 import { checkSymlinkState, createSymlink, removeSymlink } from '../lib/symlink';
 import { backupPath } from '../lib/backup';
+import { runAgentSync } from './sync-agents';
 
 interface SyncResult {
   tool: string;
@@ -84,6 +85,14 @@ export const registerSync = (program: Command): void => {
         console.log(`  ${icon} [${r.tool}] ${r.from} → ${r.to}: ${r.action}`);
       }
       const changed = results.filter((r) => r.action !== 'skipped').length;
-      console.log(`\nSync complete: ${changed} updated, ${results.length - changed} unchanged.`);
+      console.log(`\nSkills: ${changed} updated, ${results.length - changed} unchanged.`);
+
+      const agentResults = await runAgentSync();
+      for (const r of agentResults) {
+        const icon = r.action === 'skipped' ? '=' : '+';
+        console.log(`  ${icon} [${r.tool}] agent ${r.agent}.${r.format}: ${r.action}`);
+      }
+      const agentsChanged = agentResults.filter((r) => r.action !== 'skipped').length;
+      console.log(`Agents: ${agentsChanged} updated, ${agentResults.length - agentsChanged} unchanged.`);
     });
 };
