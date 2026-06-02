@@ -272,19 +272,73 @@ describe('config module', () => {
     await expect(readConfig()).resolves.toEqual(partialConfig);
   });
 
-  test('defaultConfig has four tools each mapping global to skills', async () => {
+  test('defaultConfig has five tools each mapping global to skills', async () => {
     const { defaultConfig } = loadConfigModule();
     expect(Object.keys(defaultConfig.tools).sort()).toEqual(
-      ['agents', 'claude-code', 'codex', 'cursor'].sort(),
+      ['agents', 'claude-code', 'codex', 'cursor', 'kiro'].sort(),
     );
     for (const key of Object.keys(defaultConfig.tools)) {
       const tool = defaultConfig.tools[key];
       expect(tool.enabled).toBe(true);
-      expect(tool.mappings).toEqual([{ from: 'global', to: 'skills' }]);
+      // kiro has empty mappings, all others have [{ from: 'global', to: 'skills' }]
+      if (key === 'kiro') {
+        expect(tool.mappings).toEqual([]);
+      } else {
+        expect(tool.mappings).toEqual([{ from: 'global', to: 'skills' }]);
+      }
     }
     expect(defaultConfig.tools['claude-code'].configPath).toBe('~/.claude');
     expect(defaultConfig.tools['agents'].configPath).toBe('~/.agents');
     expect(defaultConfig.tools['codex'].configPath).toBe('~/.codex');
     expect(defaultConfig.tools['cursor'].configPath).toBe('~/.cursor');
+    expect(defaultConfig.tools['kiro'].configPath).toBe('~/.kiro');
+  });
+
+  test('readConfig accepts a tool with an agents target', async () => {
+    const { readConfig, getConfigPath } = loadConfigModule();
+    const saved = {
+      source: 'disk',
+      tools: {
+        codex: {
+          enabled: true,
+          configPath: '~/.codex',
+          mappings: [],
+          agents: { path: '~/.codex/agents', format: 'toml' },
+        },
+      },
+    };
+    const configPath = getConfigPath();
+    await mkdir(path.dirname(configPath), { recursive: true });
+    await writeFile(configPath, JSON.stringify(saved, null, 2), 'utf8');
+
+    await expect(readConfig()).resolves.toEqual(saved);
+  });
+
+  test('readConfig rejects a tool whose agents target has an invalid format', async () => {
+    const { readConfig, defaultConfig, getConfigPath } = loadConfigModule();
+    const saved = {
+      source: 'disk',
+      tools: {
+        codex: {
+          enabled: true,
+          configPath: '~/.codex',
+          mappings: [],
+          agents: { path: '~/.codex/agents', format: 'yaml' },
+        },
+      },
+    };
+    const configPath = getConfigPath();
+    await mkdir(path.dirname(configPath), { recursive: true });
+    await writeFile(configPath, JSON.stringify(saved, null, 2), 'utf8');
+
+    await expect(readConfig()).resolves.toEqual(defaultConfig);
+  });
+
+  test('defaultConfig wires agent targets for claude-code, codex, cursor, and kiro', () => {
+    const { defaultConfig } = loadConfigModule();
+    expect(defaultConfig.tools['claude-code'].agents).toEqual({ path: '~/.claude/agents', format: 'md' });
+    expect(defaultConfig.tools.codex.agents).toEqual({ path: '~/.codex/agents', format: 'toml' });
+    expect(defaultConfig.tools.cursor.agents).toEqual({ path: '~/.cursor/agents', format: 'md' });
+    expect(defaultConfig.tools.kiro.agents).toEqual({ path: '~/.kiro/agents', format: 'json' });
   });
 });

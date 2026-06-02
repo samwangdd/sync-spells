@@ -7,10 +7,18 @@ export interface ToolMapping {
   to: string;
 }
 
+export type AgentFormat = 'md' | 'toml' | 'json';
+
+export interface AgentTarget {
+  path: string;
+  format: AgentFormat;
+}
+
 export interface ToolConfig {
   enabled: boolean;
   configPath: string;
   mappings: ToolMapping[];
+  agents?: AgentTarget;
 }
 
 export interface Config {
@@ -30,6 +38,17 @@ const isToolMapping = (value: unknown): value is ToolMapping => {
   return typeof mapping.from === 'string' && typeof mapping.to === 'string';
 };
 
+const isAgentTarget = (value: unknown): value is AgentTarget => {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const t = value as Partial<AgentTarget>;
+  return (
+    typeof t.path === 'string' &&
+    (t.format === 'md' || t.format === 'toml' || t.format === 'json')
+  );
+};
+
 const isToolConfig = (value: unknown): value is ToolConfig => {
   if (typeof value !== 'object' || value === null) {
     return false;
@@ -40,7 +59,8 @@ const isToolConfig = (value: unknown): value is ToolConfig => {
     typeof config.enabled === 'boolean' &&
     typeof config.configPath === 'string' &&
     Array.isArray(config.mappings) &&
-    config.mappings.every(isToolMapping)
+    config.mappings.every(isToolMapping) &&
+    (config.agents === undefined || isAgentTarget(config.agents))
   );
 };
 
@@ -69,10 +89,11 @@ export const CONFIG_PATH = path.join(configDir(), 'config.json');
 export const defaultConfig: Config = {
   source: '',
   tools: {
-    'claude-code': { enabled: true, configPath: '~/.claude', mappings: [{ from: 'global', to: 'skills' }] },
+    'claude-code': { enabled: true, configPath: '~/.claude', mappings: [{ from: 'global', to: 'skills' }], agents: { path: '~/.claude/agents', format: 'md' } },
     'agents':      { enabled: true, configPath: '~/.agents', mappings: [{ from: 'global', to: 'skills' }] },
-    'codex':       { enabled: true, configPath: '~/.codex',  mappings: [{ from: 'global', to: 'skills' }] },
-    'cursor':      { enabled: true, configPath: '~/.cursor', mappings: [{ from: 'global', to: 'skills' }] },
+    'codex':       { enabled: true, configPath: '~/.codex',  mappings: [{ from: 'global', to: 'skills' }], agents: { path: '~/.codex/agents', format: 'toml' } },
+    'cursor':      { enabled: true, configPath: '~/.cursor', mappings: [{ from: 'global', to: 'skills' }], agents: { path: '~/.cursor/agents', format: 'md' } },
+    'kiro':        { enabled: true, configPath: '~/.kiro',   mappings: [], agents: { path: '~/.kiro/agents', format: 'json' } },
   },
 };
 
