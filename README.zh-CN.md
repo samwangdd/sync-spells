@@ -9,6 +9,7 @@
 - **单一来源** — 只维护一个 spell 目录，告别分散的配置文件
 - **基于 symlink 同步** — 源目录中的变更即时反映到所有工具
 - **自动备份** — 替换真实目录前会安全备份
+- **跨工具 agents** — 一份 canonical 的 agent `.md` 按工具适配：`.md` symlink（Claude Code / Cursor）、生成 `.toml`（Codex）、生成 `.json`（Kiro）
 - **支持的工具**：
   - **Claude Code**、**Agents**、**Codex**、**Cursor**、**Kiro** — 同步全局 `skills`
 
@@ -41,6 +42,17 @@ spells sync
 ```
 
 将源目录通过 symlink 链接到各工具的配置目录。已有的真实目录会被备份到 `~/.sync-spells/backups/`。
+
+`spells sync` 还会执行一次 **agents pass**。Agent 定义只写一份 canonical Markdown，放在 `agents/{global,coding,system}/*.md`（YAML frontmatter + 正文），并按每个启用的工具适配：
+
+| 工具 | 目标 | 方式 |
+|------|------|------|
+| Claude Code | `~/.claude/agents/<name>.md` | symlink（直通） |
+| Cursor | `~/.cursor/agents/<name>.md` | symlink（直通） |
+| Codex | `~/.codex/agents/<name>.toml` | 由 frontmatter + 正文生成 |
+| Kiro | `~/.kiro/agents/<name>.json` | 由 frontmatter + 正文生成 |
+
+生成的文件是派生产物 —— 永远改 canonical 的 `.md`，不要改 `.toml`/`.json`。已存在的真实文件在被替换前会先备份。
 
 ### 推入新 spells
 
@@ -84,6 +96,7 @@ Profile 仍然作为向后兼容的存储格式存在；日常命令优先使用
 - `spells migrate [--dry-run]`：把既有 registry 转成当前分类结构
 - `spells profiles [list|show]`：向后兼容的 profile 命令
 - `spells doctor`：健康检查
+- `spells workspace [init|doctor|migrate]`：管理 workspace manifest,校验 skill/agent symlink 健康
 - `spells config [get|set]`：配置管理
 
 ## MCP 管理
@@ -99,6 +112,22 @@ spells mcp use coding
 ```
 
 全局 MCP 同步只合并 sync-spells 托管的 server 条目到 Claude Code、Cursor 和 Codex 的目标配置文件。已有的用户配置会保留；同名但未托管的条目默认视为冲突，不会覆盖。
+
+## Workspace
+
+iCloud 的 `sync-spells/` 目录是一个受管 **workspace**。其根目录下的 `workspace.json` manifest 声明了 CLI 托管的目录：
+
+```json
+{ "version": 1, "library": "skill-category", "profiles": "profiles", "agents": "agents", "legacy": [] }
+```
+
+```bash
+spells workspace init      # 写入 workspace.json（幂等）
+spells workspace doctor    # 校验 manifest 目录 + 工具 symlink 健康
+spells workspace migrate   # 创建 manifest 声明的、当前缺失的目录
+```
+
+当 manifest 声明的目录缺失、某工具的 skill 映射 symlink 断链或指向错误目标、或 Claude Code / Cursor 的 agent 直通 symlink 悬空时，`workspace doctor` 会报告问题，便于在同步漂移造成影响前发现。修复跑 `spells sync`。
 
 ### 快速开始
 

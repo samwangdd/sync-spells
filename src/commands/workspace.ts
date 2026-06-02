@@ -4,6 +4,7 @@ import * as path from 'path';
 import { Config, expandHome } from '../lib/config';
 import { checkSymlinkState } from '../lib/symlink';
 import { defaultManifest, manifestPath, readManifest, writeManifest } from '../lib/workspace';
+import { listAgentFiles, parseAgentFile } from '../lib/agent';
 
 export interface WorkspaceInitResult {
   root: string;
@@ -63,6 +64,46 @@ export const runWorkspaceDoctor = async (
           check: `symlink:${toolKey}:${mapping.to}`,
           status: 'ok',
           message: `symlink ${toolKey}:${mapping.to} is ${state}`,
+        });
+      }
+    }
+  }
+
+  // Agent passthrough symlink health. Only md-format tools symlink agent files
+  // (toml/json tools generate real files, so symlink state does not apply).
+  const agentFiles = await listAgentFiles(path.join(root, manifest.agents));
+  const parsedAgents: { file: string; name: string }[] = [];
+  for (const file of agentFiles) {
+    try {
+      parsedAgents.push({ file, name: parseAgentFile(await fs.readFile(file, 'utf8')).data.name });
+    } catch {
+      results.push({
+        check: `agent:source:${path.basename(file)}`,
+        status: 'error',
+        message: `cannot parse agent ${file}; fix its frontmatter`,
+      });
+    }
+  }
+
+  for (const [toolKey, toolConfig] of Object.entries(config.tools)) {
+    if (!toolConfig.enabled || !toolConfig.agents || toolConfig.agents.format !== 'md') {
+      continue;
+    }
+    const targetDir = expandHome(toolConfig.agents.path);
+    for (const { file, name } of parsedAgents) {
+      const target = path.join(targetDir, `${name}.md`);
+      const state = await checkSymlinkState(target, file);
+      if (state === 'broken' || state === 'wrong-target') {
+        results.push({
+          check: `agent:${toolKey}:${name}`,
+          status: 'error',
+          message: `agent symlink ${target} is ${state} (expected → ${file}); run "spells sync" to repair`,
+        });
+      } else {
+        results.push({
+          check: `agent:${toolKey}:${name}`,
+          status: 'ok',
+          message: `agent symlink ${toolKey}:${name} is ${state}`,
         });
       }
     }

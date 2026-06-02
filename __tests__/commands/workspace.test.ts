@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from '@jest/globals';
 import { mkdtempSync, rmSync } from 'fs';
-import { access, mkdir, readFile, symlink } from 'fs/promises';
+import { access, mkdir, readFile, symlink, writeFile } from 'fs/promises';
 import os from 'os';
 import path from 'path';
 import { runWorkspaceInit, runWorkspaceDoctor, runWorkspaceMigrate } from '../../src/commands/workspace';
@@ -105,5 +105,73 @@ describe('workspace migrate', () => {
     await mkdir(path.join(root, 'agents'));
     const result = await runWorkspaceMigrate(root);
     expect(result.created).toEqual([]);
+  });
+});
+
+describe('workspace doctor — agent passthrough symlinks', () => {
+  let root: string;
+
+  beforeEach(async () => {
+    root = mkdtempSync(path.join(os.tmpdir(), 'sync-spells-wsdoc-agents-'));
+    await writeManifest(root, { ...defaultManifest });
+    await mkdir(path.join(root, 'skill-category'));
+    await mkdir(path.join(root, 'profiles'));
+    await mkdir(path.join(root, 'agents', 'global'), { recursive: true });
+    await writeFile(
+      path.join(root, 'agents', 'global', 'jira.md'),
+      '---\nname: jira\ndescription: "Jira agent"\n---\nbody\n',
+      'utf8',
+    );
+  });
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  const mdToolConfig = (toolAgentsDir: string) => ({
+    source: root,
+    tools: {
+      'claude-code': {
+        enabled: true,
+        configPath: path.join(root, 'fc'),
+        mappings: [],
+        agents: { path: toolAgentsDir, format: 'md' as const },
+      },
+    },
+  });
+
+  test('reports error for a broken agent passthrough symlink', async () => {
+    const toolAgentsDir = path.join(root, 'claude-agents');
+    await mkdir(toolAgentsDir, { recursive: true });
+    await symlink(path.join(root, 'nope'), path.join(toolAgentsDir, 'jira.md'));
+    const results = await runWorkspaceDoctor(mdToolConfig(toolAgentsDir), root);
+    expect(results.find((r) => r.check === 'agent:claude-code:jira')?.status).toBe('error');
+  });
+
+  test('reports ok for a valid agent passthrough symlink', async () => {
+    const toolAgentsDir = path.join(root, 'claude-agents');
+    await mkdir(toolAgentsDir, { recursive: true });
+    await symlink(
+      path.join(root, 'agents', 'global', 'jira.md'),
+      path.join(toolAgentsDir, 'jira.md'),
+    );
+    const results = await runWorkspaceDoctor(mdToolConfig(toolAgentsDir), root);
+    expect(results.find((r) => r.check === 'agent:claude-code:jira')?.status).toBe('ok');
+  });
+
+  test('does not check agent symlinks for toml/json tools (they generate files, not symlinks)', async () => {
+    const config = {
+      source: root,
+      tools: {
+        codex: {
+          enabled: true,
+          configPath: path.join(root, 'cx'),
+          mappings: [],
+          agents: { path: path.join(root, 'codex-agents'), format: 'toml' as const },
+        },
+      },
+    };
+    const results = await runWorkspaceDoctor(config, root);
+    expect(results.some((r) => r.check.startsWith('agent:'))).toBe(false);
   });
 });
