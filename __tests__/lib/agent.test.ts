@@ -1,5 +1,9 @@
 import { describe, expect, test } from '@jest/globals';
-import { parseAgentFile, isAgentFrontmatter, toToml, toJson } from '../../src/lib/agent';
+import { parseAgentFile, isAgentFrontmatter, toToml, toJson, listAgentFiles } from '../../src/lib/agent';
+import { mkdtempSync, rmSync } from 'fs';
+import { mkdir, writeFile } from 'fs/promises';
+import os from 'os';
+import path from 'path';
 
 const SAMPLE = `---
 name: git-executor
@@ -89,5 +93,32 @@ describe('toJson', () => {
     const parsed = JSON.parse(toJson({ name: 'a', description: 'b' }, 'p\n'));
     expect(parsed.tools).toBeUndefined();
     expect(parsed.model).toBe('sonnet');
+  });
+});
+
+describe('listAgentFiles', () => {
+  test('returns depth-2 .md files sorted, excluding README.md', async () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'sync-spells-agentls-'));
+    try {
+      await mkdir(path.join(root, 'global'));
+      await mkdir(path.join(root, 'coding'));
+      await writeFile(path.join(root, 'README.md'), 'top', 'utf8');
+      await writeFile(path.join(root, 'global', 'jira.md'), 'a', 'utf8');
+      await writeFile(path.join(root, 'global', 'README.md'), 'skip', 'utf8');
+      await writeFile(path.join(root, 'coding', 'frontend.md'), 'b', 'utf8');
+      await writeFile(path.join(root, 'coding', 'notes.txt'), 'skip', 'utf8');
+
+      const files = await listAgentFiles(root);
+      expect(files).toEqual([
+        path.join(root, 'coding', 'frontend.md'),
+        path.join(root, 'global', 'jira.md'),
+      ]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('returns empty array when the agents directory is absent', async () => {
+    await expect(listAgentFiles('/no/such/dir')).resolves.toEqual([]);
   });
 });

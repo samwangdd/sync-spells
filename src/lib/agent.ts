@@ -1,3 +1,6 @@
+import * as fs from 'fs/promises';
+import * as path from 'path';
+
 export interface AgentFrontmatter {
   name: string;
   description: string;
@@ -89,4 +92,28 @@ export const toJson = (data: AgentFrontmatter, body: string): string => {
     }
   }
   return JSON.stringify(obj, null, 2) + '\n';
+};
+
+export const listAgentFiles = async (agentsDir: string): Promise<string[]> => {
+  const out: string[] = [];
+  let entries;
+  try {
+    entries = await fs.readdir(agentsDir, { withFileTypes: true });
+  } catch {
+    return out;
+  }
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+    const sub = path.join(agentsDir, entry.name);
+    for (const file of await fs.readdir(sub)) {
+      if (file.endsWith('.md') && file !== 'README.md') {
+        out.push(path.join(sub, file));
+      }
+    }
+  }
+
+  return out.sort();
 };
