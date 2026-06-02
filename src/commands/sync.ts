@@ -5,6 +5,7 @@ import { readConfig, expandHome } from '../lib/config';
 import { checkSymlinkState, createSymlink, removeSymlink } from '../lib/symlink';
 import { backupPath } from '../lib/backup';
 import { runAgentSync } from './sync-agents';
+import { runGlobalSync } from './sync-global';
 
 interface SyncResult {
   tool: string;
@@ -30,6 +31,10 @@ export const runSync = async (): Promise<SyncResult[]> => {
     const toolBase = expandHome(toolConfig.configPath);
 
     for (const mapping of toolConfig.mappings) {
+      // `global` is a reserved mapping handled by the global-profile pass (runGlobalSync).
+      if (mapping.from === 'global') {
+        continue;
+      }
       const sourcePath = path.join(sourceDir, mapping.from);
       const targetPath = path.join(toolBase, mapping.to);
 
@@ -86,6 +91,15 @@ export const registerSync = (program: Command): void => {
       }
       const changed = results.filter((r) => r.action !== 'skipped').length;
       console.log(`\nSkills: ${changed} updated, ${results.length - changed} unchanged.`);
+
+      const globalResults = await runGlobalSync();
+      for (const r of globalResults) {
+        const icon = r.action === 'error' ? '✗' : r.action === 'skipped' ? '=' : '+';
+        const suffix = r.error ? ` (${r.error})` : '';
+        console.log(`  ${icon} [${r.tool}] global ${r.skill}: ${r.action}${suffix}`);
+      }
+      const globalChanged = globalResults.filter((r) => r.action !== 'skipped').length;
+      console.log(`Global skills: ${globalChanged} updated, ${globalResults.length - globalChanged} unchanged.`);
 
       const agentResults = await runAgentSync();
       for (const r of agentResults) {
