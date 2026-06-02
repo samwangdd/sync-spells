@@ -99,8 +99,14 @@ export const registerSync = (program: Command): void => {
           const suffix = r.error ? ` (${r.error})` : '';
           console.log(`  ${icon} [${r.tool}] global ${r.skill}: ${r.action}${suffix}`);
         }
-        const globalChanged = globalResults.filter((r) => r.action !== 'skipped').length;
-        console.log(`Global skills: ${globalChanged} updated, ${globalResults.length - globalChanged} unchanged.`);
+        const globalChanged = globalResults.filter(
+          (r) => r.action === 'linked' || r.action === 'updated' || r.action === 'pruned',
+        ).length;
+        const globalUnchanged = globalResults.filter((r) => r.action === 'skipped').length;
+        const globalErrors = globalResults.filter((r) => r.action === 'error').length;
+        console.log(
+          `Global skills: ${globalChanged} updated, ${globalUnchanged} unchanged${globalErrors ? `, ${globalErrors} error(s)` : ''}.`,
+        );
       } catch (e) {
         console.log(`Global skills: skipped (${e instanceof Error ? e.message : String(e)})`);
       }

@@ -143,6 +143,16 @@ describe('mergeGlobalSkills', () => {
     expect(results).toContainEqual({ tool: 'claude-code', skill: 'picky', action: 'updated' });
     expect(await readlink(path.join(targetDir, 'picky'))).toBe(altSource);
   });
+
+  test('reports error and does not touch a foreign symlink occupying a desired name', async () => {
+    const targetDir = path.join(home, 'claude', 'skills');
+    await mkdir(targetDir, { recursive: true });
+    await mkdir(path.join(home, 'outside-target'), { recursive: true });
+    await symlink(path.join(home, 'outside-target'), path.join(targetDir, 'picky'));
+    const results = await mergeGlobalSkills(cfg(), 'claude-code', targetDir, desiredFor(['picky']));
+    expect(results).toContainEqual(expect.objectContaining({ skill: 'picky', action: 'error' }));
+    expect(await readlink(path.join(targetDir, 'picky'))).toBe(path.join(home, 'outside-target'));
+  });
 });
 
 const loadGlobalModule = (homeDir: string) => {
@@ -216,5 +226,21 @@ describe('runGlobalSync', () => {
     });
     const { runGlobalSync } = loadGlobalModule(home);
     await expect(runGlobalSync()).rejects.toThrow(/global/i);
+  });
+
+  test('skips disabled tools', async () => {
+    writeCfg({
+      'claude-code': { enabled: false, configPath: path.join(home, '.claude'), mappings: [{ from: 'global', to: 'skills' }] },
+    });
+    const { runGlobalSync } = loadGlobalModule(home);
+    expect(await runGlobalSync()).toEqual([]);
+  });
+
+  test('throws when no source is configured', async () => {
+    const dir = path.join(home, '.sync-spells');
+    require('fs').mkdirSync(dir, { recursive: true });
+    require('fs').writeFileSync(path.join(dir, 'config.json'), JSON.stringify({ source: '', tools: {} }), 'utf8');
+    const { runGlobalSync } = loadGlobalModule(home);
+    await expect(runGlobalSync()).rejects.toThrow('No source configured');
   });
 });
