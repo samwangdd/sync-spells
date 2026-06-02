@@ -12,6 +12,7 @@ import { registerConfig } from './commands/config';
 import { registerResolve } from './commands/resolve';
 import { registerMigrate } from './commands/migrate';
 import { registerBind } from './commands/bind';
+import { registerWorkspace } from './commands/workspace';
 import { readConfig } from './lib/config';
 
 const program = new Command();
@@ -34,5 +35,6 @@ registerConfig(program);
 registerResolve(program, readConfig);
 registerMigrate(program, readConfig);
 registerBind(program);
+registerWorkspace(program, readConfig);
 
 program.parse(process.argv);
