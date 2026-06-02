@@ -319,7 +319,7 @@ describe('registerSync', () => {
 
     expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('+ [claude-code]'));
     expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('linked'));
-    expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Sync complete: 1 updated'));
+    expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Skills: 1 updated'));
   });
 
   test('registerSync action shows unchanged count for already-linked items', async () => {
@@ -366,6 +366,6 @@ describe('registerSync', () => {
     await actionFn();
 
     expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('= [claude-code]'));
-    expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Sync complete: 0 updated, 1 unchanged'));
+    expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Skills: 0 updated, 1 unchanged'));
   });
 });
