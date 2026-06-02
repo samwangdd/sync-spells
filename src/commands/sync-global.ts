@@ -2,7 +2,10 @@ import * as fs from 'fs/promises';
 import type { Stats } from 'fs';
 import * as path from 'path';
 import { backupPath } from '../lib/backup';
-import { Config, expandHome } from '../lib/config';
+import { Config, expandHome, readConfig } from '../lib/config';
+import { ProfileService } from '../services/ProfileService';
+import { ResolveService } from '../services/ResolveService';
+import { SkillService } from '../services/SkillService';
 
 export interface GlobalSyncResult {
   tool: string;
@@ -106,5 +109,39 @@ export const mergeGlobalSkills = async (
     }
   }
 
+  return results;
+};
+
+export const runGlobalSync = async (): Promise<GlobalSyncResult[]> => {
+  const config = await readConfig();
+  if (!config.source) {
+    throw new Error('No source configured. Run `spells setup` first.');
+  }
+
+  const resolved = await new ResolveService(
+    config,
+    new ProfileService(config),
+    new SkillService(config),
+  ).resolve('global');
+
+  const sourceRoot = expandHome(config.source);
+  const desired = resolved.skills.map((skillPath) => ({
+    name: path.basename(skillPath),
+    sourcePath: path.join(sourceRoot, skillPath),
+  }));
+
+  const results: GlobalSyncResult[] = [];
+  for (const [toolKey, toolConfig] of Object.entries(config.tools)) {
+    if (!toolConfig.enabled) {
+      continue;
+    }
+    for (const mapping of toolConfig.mappings) {
+      if (mapping.from !== 'global') {
+        continue;
+      }
+      const targetDir = path.join(expandHome(toolConfig.configPath), mapping.to);
+      results.push(...(await mergeGlobalSkills(config, toolKey, targetDir, desired)));
+    }
+  }
   return results;
 };

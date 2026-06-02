@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { mkdtempSync, rmSync } from 'fs';
 import { lstat, mkdir, readFile, readlink, symlink, writeFile } from 'fs/promises';
 import os from 'os';
@@ -142,5 +142,79 @@ describe('mergeGlobalSkills', () => {
     ]);
     expect(results).toContainEqual({ tool: 'claude-code', skill: 'picky', action: 'updated' });
     expect(await readlink(path.join(targetDir, 'picky'))).toBe(altSource);
+  });
+});
+
+const loadGlobalModule = (homeDir: string) => {
+  jest.resetModules();
+  const actualOs = jest.requireActual<typeof import('os')>('os');
+  jest.doMock('os', () => ({ ...actualOs, homedir: () => homeDir }));
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  return require('../../src/commands/sync-global') as typeof import('../../src/commands/sync-global');
+};
+
+describe('runGlobalSync', () => {
+  let home: string;
+  let workspace: string;
+  let sourceRoot: string;
+
+  beforeEach(async () => {
+    home = mkdtempSync(path.join(os.tmpdir(), 'sync-spells-gsync-home-'));
+    workspace = mkdtempSync(path.join(os.tmpdir(), 'sync-spells-gsync-ws-'));
+    sourceRoot = path.join(workspace, 'skill-category');
+    for (const n of ['picky', 'evolution']) {
+      await mkdir(path.join(sourceRoot, 'foundation', n), { recursive: true });
+    }
+    await mkdir(path.join(workspace, 'profiles'), { recursive: true });
+    await writeFile(
+      path.join(workspace, 'profiles', 'global.json'),
+      JSON.stringify({ name: 'global', extras: ['foundation/picky', 'foundation/evolution'] }),
+      'utf8',
+    );
+  });
+
+  afterEach(() => {
+    jest.dontMock('os');
+    rmSync(home, { recursive: true, force: true });
+    rmSync(workspace, { recursive: true, force: true });
+  });
+
+  const writeCfg = (tools: Record<string, unknown>) => {
+    const dir = path.join(home, '.sync-spells');
+    require('fs').mkdirSync(dir, { recursive: true });
+    require('fs').writeFileSync(
+      path.join(dir, 'config.json'),
+      JSON.stringify({ source: sourceRoot, profilesDir: path.join(workspace, 'profiles'), tools }),
+      'utf8',
+    );
+  };
+
+  test('resolves the global profile and merges its skills into from:global tools', async () => {
+    const claudeSkills = path.join(home, '.claude', 'skills');
+    writeCfg({
+      'claude-code': { enabled: true, configPath: path.join(home, '.claude'), mappings: [{ from: 'global', to: 'skills' }] },
+    });
+    const { runGlobalSync } = loadGlobalModule(home);
+    const results = await runGlobalSync();
+    expect((await lstat(path.join(claudeSkills, 'picky'))).isSymbolicLink()).toBe(true);
+    expect((await lstat(path.join(claudeSkills, 'evolution'))).isSymbolicLink()).toBe(true);
+    expect(results.filter((r) => r.action === 'linked').length).toBe(2);
+  });
+
+  test('ignores tools without a from:global mapping', async () => {
+    writeCfg({
+      'claude-code': { enabled: true, configPath: path.join(home, '.claude'), mappings: [{ from: 'commands', to: 'commands' }] },
+    });
+    const { runGlobalSync } = loadGlobalModule(home);
+    expect(await runGlobalSync()).toEqual([]);
+  });
+
+  test('throws a clear error when the global profile is missing', async () => {
+    rmSync(path.join(workspace, 'profiles', 'global.json'));
+    writeCfg({
+      'claude-code': { enabled: true, configPath: path.join(home, '.claude'), mappings: [{ from: 'global', to: 'skills' }] },
+    });
+    const { runGlobalSync } = loadGlobalModule(home);
+    await expect(runGlobalSync()).rejects.toThrow(/global/i);
   });
 });
