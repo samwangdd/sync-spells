@@ -6,6 +6,15 @@ import { checkSymlinkState } from '../lib/symlink';
 import { defaultManifest, manifestPath, readManifest, writeManifest } from '../lib/workspace';
 import { listAgentFiles, parseAgentFile } from '../lib/agent';
 
+/**
+ * The workspace root is the parent of `config.source`. By repo convention
+ * `config.source` points at the skill library directory (e.g. `<root>/skill-category`,
+ * whose direct children are the categories), so the managed workspace — which also
+ * holds `profiles/` and `agents/` as siblings of the library — is one level up.
+ */
+export const workspaceRoot = (config: Config): string =>
+  path.dirname(expandHome(config.source));
+
 export interface WorkspaceInitResult {
   root: string;
   action: 'created' | 'unchanged';
@@ -141,7 +150,7 @@ export const registerWorkspace = (program: Command, getConfig: () => Promise<Con
     .description('Write workspace.json into the configured workspace root')
     .action(async () => {
       const config = await getConfig();
-      const root = expandHome(config.source);
+      const root = workspaceRoot(config);
       const result = await runWorkspaceInit(root);
       console.log(`  ${result.action === 'created' ? '+' : '='} workspace.json: ${result.action} (${result.root})`);
     });
@@ -150,7 +159,7 @@ export const registerWorkspace = (program: Command, getConfig: () => Promise<Con
     .description('Validate workspace directories and tool symlink health')
     .action(async () => {
       const config = await getConfig();
-      const root = expandHome(config.source);
+      const root = workspaceRoot(config);
       const results = await runWorkspaceDoctor(config, root);
       for (const r of results) {
         const icon = r.status === 'ok' ? '✓' : r.status === 'warn' ? '⚠' : '✗';
@@ -164,7 +173,7 @@ export const registerWorkspace = (program: Command, getConfig: () => Promise<Con
     .description('Create any missing manifest-declared directories')
     .action(async () => {
       const config = await getConfig();
-      const root = expandHome(config.source);
+      const root = workspaceRoot(config);
       const result = await runWorkspaceMigrate(root);
       if (result.created.length === 0) {
         console.log('  = workspace already conforms to manifest');
