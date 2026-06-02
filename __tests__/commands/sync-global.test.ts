@@ -131,4 +131,16 @@ describe('mergeGlobalSkills', () => {
       expect.objectContaining({ skill: 'ghost', action: 'error' }),
     );
   });
+
+  test('re-points an owned link whose target changed (updated)', async () => {
+    const targetDir = path.join(home, 'claude', 'skills');
+    await mergeGlobalSkills(cfg(), 'claude-code', targetDir, desiredFor(['picky']));
+    const altSource = path.join(sourceRoot, 'foundation', 'picky-v2');
+    await mkdir(altSource, { recursive: true });
+    const results = await mergeGlobalSkills(cfg(), 'claude-code', targetDir, [
+      { name: 'picky', sourcePath: altSource },
+    ]);
+    expect(results).toContainEqual({ tool: 'claude-code', skill: 'picky', action: 'updated' });
+    expect(await readlink(path.join(targetDir, 'picky'))).toBe(altSource);
+  });
 });

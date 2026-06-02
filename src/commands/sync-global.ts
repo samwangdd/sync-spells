@@ -1,4 +1,5 @@
 import * as fs from 'fs/promises';
+import type { Stats } from 'fs';
 import * as path from 'path';
 import { backupPath } from '../lib/backup';
 import { Config, expandHome } from '../lib/config';
@@ -38,6 +39,8 @@ export const mergeGlobalSkills = async (
   try {
     const st = await fs.lstat(targetDir);
     if (st.isSymbolicLink()) {
+      // Note: backupPath copies the symlink itself (not a deep copy of its target),
+      // and unlink removes only the link entry — the chained real directory is unharmed.
       await backupPath(targetDir);
       await fs.unlink(targetDir);
       await fs.mkdir(targetDir, { recursive: true });
@@ -59,7 +62,7 @@ export const mergeGlobalSkills = async (
       continue;
     }
 
-    let st: import('fs').Stats | null = null;
+    let st: Stats | null = null;
     try {
       st = await fs.lstat(link);
     } catch {
