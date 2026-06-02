@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'fs';
 import { access, mkdir, readFile, symlink, writeFile } from 'fs/promises';
 import os from 'os';
 import path from 'path';
-import { runWorkspaceInit, runWorkspaceDoctor, runWorkspaceMigrate } from '../../src/commands/workspace';
+import { runWorkspaceInit, runWorkspaceDoctor, runWorkspaceMigrate, workspaceRoot } from '../../src/commands/workspace';
 import { defaultManifest, MANIFEST_FILE, writeManifest } from '../../src/lib/workspace';
 
 describe('workspace init', () => {
@@ -173,5 +173,17 @@ describe('workspace doctor — agent passthrough symlinks', () => {
     };
     const results = await runWorkspaceDoctor(config, root);
     expect(results.some((r) => r.check.startsWith('agent:'))).toBe(false);
+  });
+});
+
+describe('workspaceRoot', () => {
+  test('returns the parent of config.source (source points at the library dir)', () => {
+    expect(workspaceRoot({ source: '/a/b/skill-category', tools: {} })).toBe('/a/b');
+  });
+
+  test('expands ~ before taking dirname', () => {
+    expect(workspaceRoot({ source: '~/x/skill-category', tools: {} })).toBe(
+      path.join(os.homedir(), 'x'),
+    );
   });
 });
