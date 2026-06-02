@@ -175,6 +175,7 @@ describe('sync command', () => {
 
     const results = await runSync();
     expect(results).toEqual([]);
+    await expect(fs.lstat(path.join(toolDir, 'skills'))).rejects.toThrow();
   });
 
   test('runSync skips disabled tools', async () => {

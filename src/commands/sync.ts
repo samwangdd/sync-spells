@@ -105,12 +105,16 @@ export const registerSync = (program: Command): void => {
         console.log(`Global skills: skipped (${e instanceof Error ? e.message : String(e)})`);
       }
 
-      const agentResults = await runAgentSync();
-      for (const r of agentResults) {
-        const icon = r.action === 'skipped' ? '=' : '+';
-        console.log(`  ${icon} [${r.tool}] agent ${r.agent}.${r.format}: ${r.action}`);
+      try {
+        const agentResults = await runAgentSync();
+        for (const r of agentResults) {
+          const icon = r.action === 'skipped' ? '=' : '+';
+          console.log(`  ${icon} [${r.tool}] agent ${r.agent}.${r.format}: ${r.action}`);
+        }
+        const agentsChanged = agentResults.filter((r) => r.action !== 'skipped').length;
+        console.log(`Agents: ${agentsChanged} updated, ${agentResults.length - agentsChanged} unchanged.`);
+      } catch (e) {
+        console.log(`Agents: skipped (${e instanceof Error ? e.message : String(e)})`);
       }
-      const agentsChanged = agentResults.filter((r) => r.action !== 'skipped').length;
-      console.log(`Agents: ${agentsChanged} updated, ${agentResults.length - agentsChanged} unchanged.`);
     });
 };
