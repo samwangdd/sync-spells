@@ -9,6 +9,7 @@ Manage all your AI agent spells (commands, skills, agents) in one place and sync
 - **Single source of truth** — maintain one spell directory instead of scattered configs
 - **Symlink-based sync** — changes in your source directory are instantly reflected in all tools
 - **Automatic backup** — existing directories are safely backed up before being replaced by symlinks
+- **Cross-tool agents** — one canonical agent `.md` is adapted per tool: `.md` symlink (Claude Code / Cursor), generated `.toml` (Codex), generated `.json` (Kiro)
 - **Supported tools**:
   - **Claude Code**, **Agents**, **Codex**, **Cursor**, and **Kiro** — sync global `skills`
 
@@ -41,6 +42,17 @@ spells sync
 ```
 
 Creates symlinks from your source directory into each tool's config directory. Existing real directories are backed up to `~/.sync-spells/backups/`.
+
+`spells sync` also runs an **agents pass**. Agent definitions are authored once as canonical Markdown in `agents/{global,coding,system}/*.md` (YAML frontmatter + body) and adapted to each enabled tool:
+
+| Tool | Target | How |
+|------|--------|-----|
+| Claude Code | `~/.claude/agents/<name>.md` | symlink (passthrough) |
+| Cursor | `~/.cursor/agents/<name>.md` | symlink (passthrough) |
+| Codex | `~/.codex/agents/<name>.toml` | generated from frontmatter + body |
+| Kiro | `~/.kiro/agents/<name>.json` | generated from frontmatter + body |
+
+Generated files are derived output — edit the canonical `.md`, never the `.toml`/`.json`. Pre-existing real files are backed up before being replaced.
 
 ### Push new spells
 
@@ -84,6 +96,7 @@ Profiles still exist as the backward-compatible storage format for presets.
 - `spells migrate [--dry-run]` - Convert an existing registry to the category layout
 - `spells profiles [list|show]` - Backward-compatible profile commands
 - `spells doctor` - Health check
+- `spells workspace [init|doctor|migrate]` - Manage the workspace manifest and validate skill/agent symlink health
 - `spells config [get|set]` - Configuration management
 
 ## MCP Management
@@ -99,6 +112,22 @@ spells mcp use coding
 ```
 
 Global MCP sync merges only sync-spells-owned server entries into Claude Code, Cursor, and Codex target files. Existing user-owned settings are preserved and same-name conflicts are refused unless explicitly adopted.
+
+## Workspace
+
+The iCloud `sync-spells/` directory is a managed **workspace**. A `workspace.json` manifest at its root declares the directories the CLI owns:
+
+```json
+{ "version": 1, "library": "skill-category", "profiles": "profiles", "agents": "agents", "legacy": [] }
+```
+
+```bash
+spells workspace init      # Write workspace.json (idempotent)
+spells workspace doctor    # Validate manifest dirs + tool symlink health
+spells workspace migrate   # Create any missing manifest-declared directories
+```
+
+`workspace doctor` reports a problem when a manifest directory is missing, when a tool's skill-mapping symlink is broken or points at the wrong target, or when a Claude Code / Cursor agent passthrough symlink is dangling — surfacing sync drift before it bites. Run `spells sync` to repair.
 
 ### Quick Start
 
