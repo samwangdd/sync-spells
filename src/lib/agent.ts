@@ -57,7 +57,9 @@ export const parseAgentFile = (content: string): { data: AgentFrontmatter; body:
 const tomlString = (value: string): string => JSON.stringify(String(value ?? ''));
 
 const tomlMultiline = (value: string): string => {
-  const escaped = String(value ?? '').replace(/"""/g, '\\"\\"\\"');
+  const escaped = String(value ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/"""/g, '\\"\\"\\"');
   return `"""${escaped}"""`;
 };
 

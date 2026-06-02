@@ -62,6 +62,11 @@ describe('toToml', () => {
     const out = toToml({ name: 'a', description: 'b' }, 'x\n');
     expect(out).toContain('model = "sonnet"');
   });
+
+  test('escapes backslashes in the body so TOML stays valid', () => {
+    const out = toToml({ name: 'a', description: 'b' }, 'path C:\\Users and regex \\d\n');
+    expect(out).toContain('developer_instructions = """path C:\\\\Users and regex \\\\d\n"""');
+  });
 });
 
 describe('toJson', () => {
