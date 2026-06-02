@@ -121,4 +121,17 @@ describe('listAgentFiles', () => {
   test('returns empty array when the agents directory is absent', async () => {
     await expect(listAgentFiles('/no/such/dir')).resolves.toEqual([]);
   });
+
+  test('ignores a subdirectory whose name ends in .md', async () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'sync-spells-agentmd-'));
+    try {
+      await mkdir(path.join(root, 'global'));
+      await mkdir(path.join(root, 'global', 'weird.md')); // a directory, not a file
+      await writeFile(path.join(root, 'global', 'real.md'), 'a', 'utf8');
+      const files = await listAgentFiles(root);
+      expect(files).toEqual([path.join(root, 'global', 'real.md')]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

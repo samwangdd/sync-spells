@@ -1,4 +1,5 @@
 import * as fs from 'fs/promises';
+import type { Dirent } from 'fs';
 import * as path from 'path';
 
 export interface AgentFrontmatter {
@@ -96,7 +97,7 @@ export const toJson = (data: AgentFrontmatter, body: string): string => {
 
 export const listAgentFiles = async (agentsDir: string): Promise<string[]> => {
   const out: string[] = [];
-  let entries;
+  let entries: Dirent[];
   try {
     entries = await fs.readdir(agentsDir, { withFileTypes: true });
   } catch {
@@ -108,9 +109,9 @@ export const listAgentFiles = async (agentsDir: string): Promise<string[]> => {
       continue;
     }
     const sub = path.join(agentsDir, entry.name);
-    for (const file of await fs.readdir(sub)) {
-      if (file.endsWith('.md') && file !== 'README.md') {
-        out.push(path.join(sub, file));
+    for (const file of await fs.readdir(sub, { withFileTypes: true })) {
+      if (file.isFile() && file.name.endsWith('.md') && file.name !== 'README.md') {
+        out.push(path.join(sub, file.name));
       }
     }
   }
