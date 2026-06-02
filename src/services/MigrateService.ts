@@ -283,7 +283,7 @@ export class MigrateService {
       const parentDir = path.dirname(registryDir);
       const backupDir = path.join(
         parentDir,
-        `skills-registry-backup-${stamp}`
+        `skill-category-backup-${stamp}`
       );
       await fs.cp(registryDir, backupDir, { recursive: true });
       report.backupDir = backupDir;

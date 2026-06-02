@@ -9,7 +9,7 @@ describe('MigrateService', () => {
   let cfg: Config;
 
   beforeEach(async () => {
-    dir = `/tmp/migrate-${Date.now()}/skills-registry`;
+    dir = `/tmp/migrate-${Date.now()}/skill-category`;
     for (const s of [
       'global/git-commit',
       'domains/frontend/web-perf',
@@ -102,7 +102,7 @@ describe('MigrateService', () => {
       false
     ); // global dropped
     expect(report.backupDir).toContain(
-      'skills-registry-backup-20260531-000000'
+      'skill-category-backup-20260531-000000'
     );
   });
 

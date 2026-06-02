@@ -62,8 +62,8 @@ spells status
 
 SyncSpells 只有五个日常概念：
 
-1. **Library**：所有可用 skill，位于 `skills-registry/`。
-2. **Global**：跨场景共享的 skill，物理存放在 `skills-registry/global/`。
+1. **Library**：所有可用 skill，位于 `skill-category/`。
+2. **Global profile**：最小全局可用集合，定义在 `profiles/global.json`。
 3. **Preset**：一组 skill 的工作模式，例如 `coding` 或 `lifeos`。
 4. **Binding**：某个目录树默认使用哪个 preset。
 5. **Project**：当前仓库使用哪个 preset。
@@ -75,7 +75,7 @@ Profile 仍然作为向后兼容的存储格式存在；日常命令优先使用
 - `spells skill list [--category]`：查看 Library 中的 skills
 - `spells skill add <path>`：把 skill 加入 Library
 - `spells skill new <name>`：创建新 skill
-- `spells skill globalize <skill>`：移动 skill 到 `skills-registry/global/<name>`，并更新 profile/preset 引用
+- `profiles/global.json`：用显式 `extras` 逐条加入最小全局 profile
 - `spells skill localize <skill> --to <category>`：把全局 skill 移回 `knowledge`、`coding`、`workflow` 或 `inbox`
 - `spells bind [list|add|remove]`：管理目录树到 preset 的默认绑定
 - `spells preset [list|show]`：管理 presets
@@ -85,6 +85,20 @@ Profile 仍然作为向后兼容的存储格式存在；日常命令优先使用
 - `spells profiles [list|show]`：向后兼容的 profile 命令
 - `spells doctor`：健康检查
 - `spells config [get|set]`：配置管理
+
+## MCP 管理
+
+MCP 配置和 skills 分开管理。共享 MCP 放在 `mcp-registry/global.json`，项目 preset 放在 `mcp-registry/presets/<preset>.json`。
+
+```bash
+spells mcp status
+spells mcp sync --global --dry-run
+spells mcp sync --global
+spells mcp use coding --dry-run
+spells mcp use coding
+```
+
+全局 MCP 同步只合并 sync-spells 托管的 server 条目到 Claude Code、Cursor 和 Codex 的目标配置文件。已有的用户配置会保留；同名但未托管的条目默认视为冲突，不会覆盖。
 
 ### 快速开始
 
@@ -117,7 +131,7 @@ Profile 仍然作为向后兼容的存储格式存在；日常命令优先使用
 spells skill globalize <skill>
 ```
 
-这个命令会把 skill 目录物理移动到 `skills-registry/global/<name>`，并把所有 profile/preset JSON 里的旧 Library 路径更新为新的 `global/<name>` 路径。如果裸 skill 名称匹配到多个 Library 路径，需要重新使用完整 Library 路径执行。
+需要全局可用的 skill 放进 `profiles/global.json`，逐条写入 `extras`。不要在 global profile 里整类引入 category，避免全局 skill 数量膨胀。
 
 当某个全局 skill 应该回到特定分类时，使用 `localize`：
 
@@ -130,7 +144,7 @@ spells skill localize <skill> --to inbox
 
 ### 实现说明
 
-`spells sync` 会把 `skills-registry/global/` 中的全局 skills 链接到每个已启用工具。`spells use [preset]` 会解析显式 preset 或当前目录命中的最长路径 binding，并把项目级 skills 从 registry 直接链接到 `.codex/skills` 和 `.claude/skills`；全局和 inbox skills 会被刻意排除在项目级链接之外。
+`spells use [preset]` 会解析显式 preset 或当前目录命中的最长路径 binding，并把项目级 skills 从 skill category 直接链接到 `.codex/skills` 和 `.claude/skills`；inbox skills 会被刻意排除在项目级链接之外。
 
 ## 本地开发
 

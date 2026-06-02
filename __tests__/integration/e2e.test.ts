@@ -105,6 +105,6 @@ describe('E2E Integration', () => {
     const projectSvc = new ProjectService(config, profileSvc);
 
     expect(projectSvc.inferProfile('/Users/sammore/Mexc/frontend')).toBe('mexc-code');
-    expect(projectSvc.inferProfile('/Users/sammore/other')).toBe('global-lite');
+    expect(projectSvc.inferProfile('/Users/sammore/other')).toBe('global');
   });
 });

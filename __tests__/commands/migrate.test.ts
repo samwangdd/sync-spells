@@ -9,7 +9,7 @@ describe('runMigrate', () => {
   let cfg: Config;
 
   beforeEach(async () => {
-    dir = `/tmp/migrate-cmd-${Date.now()}/skills-registry`;
+    dir = `/tmp/migrate-cmd-${Date.now()}/skill-category`;
     for (const s of [
       'global/git-commit',
       'domains/frontend/web-perf',

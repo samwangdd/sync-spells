@@ -73,9 +73,9 @@ describe('ProjectService', () => {
     expect(profile).toBe('lifeos-knowledge');
   });
 
-  it('should fallback to global-lite for unknown paths', () => {
+  it('should fallback to global for unknown paths', () => {
     const profile = service.inferProfile('/Users/sammore/other-project');
-    expect(profile).toBe('global-lite');
+    expect(profile).toBe('global');
   });
 
   it('should return null when no rules match (empty rules)', () => {
