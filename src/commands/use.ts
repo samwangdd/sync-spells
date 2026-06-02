@@ -12,7 +12,7 @@ export const runUse = async (
 ) => {
   const profileSvc = new ProfileService(config);
   const projectSvc = new ProjectService(config, profileSvc);
-  const finalProfile = profileName || projectSvc.inferProfile(projectPath) || 'global-lite';
+  const finalProfile = profileName || projectSvc.inferProfile(projectPath) || 'global';
   const resolved = await new ResolveService(config, profileSvc, new SkillService(config)).resolve(finalProfile);
   return await projectSvc.activateSkills(projectPath, finalProfile, resolved.skills);
 };

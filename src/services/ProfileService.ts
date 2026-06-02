@@ -76,7 +76,7 @@ export class ProfileService {
   }
 
   async getDefaultProfile(): Promise<Profile> {
-    const defaultName = this.config.defaultProfile || 'global-lite';
+    const defaultName = this.config.defaultProfile || 'global';
     const profile = await this.getProfile(defaultName);
 
     if (!profile) {

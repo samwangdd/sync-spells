@@ -103,7 +103,7 @@ export const runMcpUse = async (
 
   const profileSvc = new ProfileService(config);
   const projectSvc = new ProjectService(config, profileSvc);
-  const finalPreset = preset || projectSvc.inferProfile(projectPath) || 'global-lite';
+  const finalPreset = preset || projectSvc.inferProfile(projectPath) || 'global';
   const loaded = await new McpRegistryService(expandHome(config.source)).loadForPreset(finalPreset);
   const changes = await writeTargets(config, 'project', projectPath, loaded.servers, options);
 

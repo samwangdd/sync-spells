@@ -8,7 +8,7 @@ import { ProfileService } from './ProfileService';
 const DEFAULT_INFERENCE_RULES: InferenceRule[] = [
   { pattern: /Mexc/i, profile: 'mexc-code' },
   { pattern: /lifeOS|🏝️lifeOS/i, profile: 'lifeos-knowledge' },
-  { pattern: /.*/, profile: 'global-lite' }
+  { pattern: /.*/, profile: 'global' }
 ];
 
 export class ProjectService {

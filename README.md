@@ -62,8 +62,8 @@ Shows the active preset and linked skills for the current project. Use `spells s
 
 SyncSpells has five daily concepts:
 
-1. **Library** - all available skills in `skills-registry/`.
-2. **Global** - shared skills physically stored in `skills-registry/global/`.
+1. **Library** - all available skills in `skill-category/`.
+2. **Global profile** - the minimal always-available set in `profiles/global.json`.
 3. **Preset** - a working mode that selects skills, such as `coding` or `lifeos`.
 4. **Binding** - a directory tree mapped to a default preset.
 5. **Project** - the current repository using one preset.
@@ -75,7 +75,7 @@ Profiles still exist as the backward-compatible storage format for presets.
 - `spells skill list [--category]` - List Library skills
 - `spells skill add <path>` - Add skill to the Library
 - `spells skill new <name>` - Create a new skill
-- `spells skill globalize <skill>` - Move a skill to `skills-registry/global/<name>` and update profile/preset references
+- `profiles/global.json` - Add a skill to the minimal global profile with an explicit `extras` entry
 - `spells skill localize <skill> --to <category>` - Move a global skill back to `knowledge`, `coding`, `workflow`, or `inbox`
 - `spells bind [list|add|remove]` - Manage directory-tree defaults for presets
 - `spells preset [list|show]` - Manage presets
@@ -131,7 +131,7 @@ Use `globalize` when a skill should be shared by both LiveOS and Coding presets:
 spells skill globalize <skill>
 ```
 
-This physically moves the skill directory to `skills-registry/global/<name>` and updates every profile/preset JSON reference from the old Library path to the new `global/<name>` path. If a bare skill name matches multiple Library paths, rerun the command with the full Library path.
+Use `profiles/global.json` for skills that should be available in the smallest fallback profile. Add entries one by one under `extras`; do not import an entire category into the global profile.
 
 Use `localize` when a global skill should move back into a scoped category:
 
@@ -144,7 +144,7 @@ spells skill localize <skill> --to inbox
 
 ### Implementation Notes
 
-`spells sync` links global skills from `skills-registry/global/` into each enabled tool. `spells use [preset]` resolves the explicit preset or the current directory's longest matching binding, then links project skills directly from the registry into `.codex/skills` and `.claude/skills`. Global and inbox skills are intentionally excluded from project-level links.
+`spells use [preset]` resolves the explicit preset or the current directory's longest matching binding, then links project skills directly from the skill category into `.codex/skills` and `.claude/skills`. Inbox skills are intentionally excluded from project-level links.
 
 ## Local Development
 

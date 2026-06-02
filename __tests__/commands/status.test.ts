@@ -385,7 +385,7 @@ describe('registerStatus', () => {
 
     const output = consoleLogSpy.mock.calls.map(([line]) => line).join('\n');
     expect(output).toContain('Project preset: none active');
-    expect(output).toContain('Inferred preset: global-lite (/.*/)');
+    expect(output).toContain('Inferred preset: global (/.*/)');
     expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('[claude-code]'));
     expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('commands'));
     expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('linked'));
