@@ -53,3 +53,38 @@ export const parseAgentFile = (content: string): { data: AgentFrontmatter; body:
   }
   return { data: data as unknown as AgentFrontmatter, body };
 };
+
+const tomlString = (value: string): string => JSON.stringify(String(value ?? ''));
+
+const tomlMultiline = (value: string): string => {
+  const escaped = String(value ?? '').replace(/"""/g, '\\"\\"\\"');
+  return `"""${escaped}"""`;
+};
+
+export const toToml = (data: AgentFrontmatter, body: string): string => {
+  const model = data.model || 'sonnet';
+  return [
+    `name = ${tomlString(data.name)}`,
+    `description = ${tomlString(data.description)}`,
+    `model = ${tomlString(model)}`,
+    '',
+    `developer_instructions = ${tomlMultiline(body)}`,
+    '',
+  ].join('\n');
+};
+
+export const toJson = (data: AgentFrontmatter, body: string): string => {
+  const obj: Record<string, unknown> = {
+    name: data.name,
+    description: data.description,
+    model: data.model || 'sonnet',
+    prompt: body,
+  };
+  if (data.tools) {
+    const tools = data.tools.split(',').map((t) => t.trim()).filter(Boolean);
+    if (tools.length > 0) {
+      obj.tools = tools;
+    }
+  }
+  return JSON.stringify(obj, null, 2) + '\n';
+};
