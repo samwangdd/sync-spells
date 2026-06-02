@@ -91,4 +91,19 @@ describe('runAgentSync', () => {
     expect(codexResult?.action).toBe('backed-up');
     expect(await readFile(path.join(codexDir, 'jira.toml'), 'utf8')).toContain('name = "jira"');
   });
+
+  test('replaces a pre-existing symlink at the .toml target with a real file', async () => {
+    await writeConfig();
+    const codexDir = path.join(home, '.codex/agents');
+    await mkdir(codexDir, { recursive: true });
+    const target = path.join(codexDir, 'jira.toml');
+    const { symlink } = await import('fs/promises');
+    await symlink(path.join(home, 'nonexistent-target'), target); // stale symlink
+    const { syncAgents } = loadModules();
+    const results = await syncAgents.runAgentSync();
+    expect((await lstat(target)).isSymbolicLink()).toBe(false);
+    expect(await readFile(target, 'utf8')).toContain('name = "jira"');
+    const codexResult = results.find((r) => r.tool === 'codex' && r.agent === 'jira');
+    expect(codexResult?.action).toBe('written');
+  });
 });

@@ -73,11 +73,16 @@ export const runAgentSync = async (): Promise<AgentSyncResult[]> => {
         let action: AgentSyncResult['action'] = 'written';
         try {
           const stats = await fs.lstat(target);
-          await backupPath(target);
-          if (stats.isDirectory()) {
-            await fs.rm(target, { recursive: true, force: true });
+          if (stats.isSymbolicLink()) {
+            await fs.unlink(target);
+            action = 'written';
+          } else {
+            await backupPath(target);
+            if (stats.isDirectory()) {
+              await fs.rm(target, { recursive: true, force: true });
+            }
+            action = 'backed-up';
           }
-          action = 'backed-up';
         } catch {
           action = 'written';
         }
