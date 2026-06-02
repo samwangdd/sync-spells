@@ -71,6 +71,28 @@ export const runWorkspaceDoctor = async (
   return results;
 };
 
+export interface WorkspaceMigrateResult {
+  root: string;
+  created: string[];
+}
+
+export const runWorkspaceMigrate = async (root: string): Promise<WorkspaceMigrateResult> => {
+  const manifest = await readManifest(root);
+  const created: string[] = [];
+
+  for (const dir of [manifest.library, manifest.profiles, manifest.agents]) {
+    const full = path.join(root, dir);
+    try {
+      await fs.access(full);
+    } catch {
+      await fs.mkdir(full, { recursive: true });
+      created.push(dir);
+    }
+  }
+
+  return { root, created: created.sort() };
+};
+
 export const registerWorkspace = (program: Command, getConfig: () => Promise<Config>): void => {
   const ws = program.command('workspace').description('Manage the iCloud sync-spells workspace');
 
@@ -95,5 +117,20 @@ export const registerWorkspace = (program: Command, getConfig: () => Promise<Con
       }
       const hasErrors = results.some((r) => r.status === 'error');
       console.log(`\n${hasErrors ? '✗ Workspace issues found' : '✓ Workspace healthy'}\n`);
+    });
+
+  ws.command('migrate')
+    .description('Create any missing manifest-declared directories')
+    .action(async () => {
+      const config = await getConfig();
+      const root = expandHome(config.source);
+      const result = await runWorkspaceMigrate(root);
+      if (result.created.length === 0) {
+        console.log('  = workspace already conforms to manifest');
+      } else {
+        for (const dir of result.created) {
+          console.log(`  + created ${dir}`);
+        }
+      }
     });
 };

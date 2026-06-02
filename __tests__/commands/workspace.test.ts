@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test } from '@jest/globals';
 import { mkdtempSync, rmSync } from 'fs';
-import { mkdir, readFile, symlink } from 'fs/promises';
+import { access, mkdir, readFile, symlink } from 'fs/promises';
 import os from 'os';
 import path from 'path';
-import { runWorkspaceInit, runWorkspaceDoctor } from '../../src/commands/workspace';
+import { runWorkspaceInit, runWorkspaceDoctor, runWorkspaceMigrate } from '../../src/commands/workspace';
 import { defaultManifest, MANIFEST_FILE, writeManifest } from '../../src/lib/workspace';
 
 describe('workspace init', () => {
@@ -75,5 +75,35 @@ describe('workspace doctor', () => {
     const results = await runWorkspaceDoctor(config, root);
     const link = results.find((r) => r.check === 'symlink:claude-code:skills');
     expect(link?.status).toBe('error');
+  });
+});
+
+describe('workspace migrate', () => {
+  let root: string;
+
+  beforeEach(() => {
+    root = mkdtempSync(path.join(os.tmpdir(), 'sync-spells-wsmig-'));
+  });
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  test('creates missing manifest directories and reports them', async () => {
+    await writeManifest(root, { ...defaultManifest });
+    const result = await runWorkspaceMigrate(root);
+    expect(result.created.sort()).toEqual(['agents', 'profiles', 'skill-category']);
+    await expect(access(path.join(root, 'skill-category'))).resolves.toBeUndefined();
+    await expect(access(path.join(root, 'agents'))).resolves.toBeUndefined();
+    await expect(access(path.join(root, 'profiles'))).resolves.toBeUndefined();
+  });
+
+  test('creates nothing when all directories already exist', async () => {
+    await writeManifest(root, { ...defaultManifest });
+    await mkdir(path.join(root, 'skill-category'));
+    await mkdir(path.join(root, 'profiles'));
+    await mkdir(path.join(root, 'agents'));
+    const result = await runWorkspaceMigrate(root);
+    expect(result.created).toEqual([]);
   });
 });
