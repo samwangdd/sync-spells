@@ -92,14 +92,18 @@ export const registerSync = (program: Command): void => {
       const changed = results.filter((r) => r.action !== 'skipped').length;
       console.log(`\nSkills: ${changed} updated, ${results.length - changed} unchanged.`);
 
-      const globalResults = await runGlobalSync();
-      for (const r of globalResults) {
-        const icon = r.action === 'error' ? '✗' : r.action === 'skipped' ? '=' : '+';
-        const suffix = r.error ? ` (${r.error})` : '';
-        console.log(`  ${icon} [${r.tool}] global ${r.skill}: ${r.action}${suffix}`);
+      try {
+        const globalResults = await runGlobalSync();
+        for (const r of globalResults) {
+          const icon = r.action === 'error' ? '✗' : r.action === 'skipped' ? '=' : '+';
+          const suffix = r.error ? ` (${r.error})` : '';
+          console.log(`  ${icon} [${r.tool}] global ${r.skill}: ${r.action}${suffix}`);
+        }
+        const globalChanged = globalResults.filter((r) => r.action !== 'skipped').length;
+        console.log(`Global skills: ${globalChanged} updated, ${globalResults.length - globalChanged} unchanged.`);
+      } catch (e) {
+        console.log(`Global skills: skipped (${e instanceof Error ? e.message : String(e)})`);
       }
-      const globalChanged = globalResults.filter((r) => r.action !== 'skipped').length;
-      console.log(`Global skills: ${globalChanged} updated, ${globalResults.length - globalChanged} unchanged.`);
 
       const agentResults = await runAgentSync();
       for (const r of agentResults) {
