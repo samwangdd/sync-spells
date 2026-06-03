@@ -5,6 +5,7 @@ import { readConfig, expandHome } from '../lib/config';
 import { checkSymlinkState, createSymlink, removeSymlink } from '../lib/symlink';
 import { backupPath } from '../lib/backup';
 import { runAgentSync } from './sync-agents';
+import { runGlobalSync } from './sync-global';
 
 interface SyncResult {
   tool: string;
@@ -30,6 +31,10 @@ export const runSync = async (): Promise<SyncResult[]> => {
     const toolBase = expandHome(toolConfig.configPath);
 
     for (const mapping of toolConfig.mappings) {
+      // `global` is a reserved mapping handled by the global-profile pass (runGlobalSync).
+      if (mapping.from === 'global') {
+        continue;
+      }
       const sourcePath = path.join(sourceDir, mapping.from);
       const targetPath = path.join(toolBase, mapping.to);
 
@@ -87,12 +92,35 @@ export const registerSync = (program: Command): void => {
       const changed = results.filter((r) => r.action !== 'skipped').length;
       console.log(`\nSkills: ${changed} updated, ${results.length - changed} unchanged.`);
 
-      const agentResults = await runAgentSync();
-      for (const r of agentResults) {
-        const icon = r.action === 'skipped' ? '=' : '+';
-        console.log(`  ${icon} [${r.tool}] agent ${r.agent}.${r.format}: ${r.action}`);
+      try {
+        const globalResults = await runGlobalSync();
+        for (const r of globalResults) {
+          const icon = r.action === 'error' ? '✗' : r.action === 'skipped' ? '=' : '+';
+          const suffix = r.error ? ` (${r.error})` : '';
+          console.log(`  ${icon} [${r.tool}] global ${r.skill}: ${r.action}${suffix}`);
+        }
+        const globalChanged = globalResults.filter(
+          (r) => r.action === 'linked' || r.action === 'updated' || r.action === 'pruned',
+        ).length;
+        const globalUnchanged = globalResults.filter((r) => r.action === 'skipped').length;
+        const globalErrors = globalResults.filter((r) => r.action === 'error').length;
+        console.log(
+          `Global skills: ${globalChanged} updated, ${globalUnchanged} unchanged${globalErrors ? `, ${globalErrors} error(s)` : ''}.`,
+        );
+      } catch (e) {
+        console.log(`Global skills: skipped (${e instanceof Error ? e.message : String(e)})`);
       }
-      const agentsChanged = agentResults.filter((r) => r.action !== 'skipped').length;
-      console.log(`Agents: ${agentsChanged} updated, ${agentResults.length - agentsChanged} unchanged.`);
+
+      try {
+        const agentResults = await runAgentSync();
+        for (const r of agentResults) {
+          const icon = r.action === 'skipped' ? '=' : '+';
+          console.log(`  ${icon} [${r.tool}] agent ${r.agent}.${r.format}: ${r.action}`);
+        }
+        const agentsChanged = agentResults.filter((r) => r.action !== 'skipped').length;
+        console.log(`Agents: ${agentsChanged} updated, ${agentResults.length - agentsChanged} unchanged.`);
+      } catch (e) {
+        console.log(`Agents: skipped (${e instanceof Error ? e.message : String(e)})`);
+      }
     });
 };
