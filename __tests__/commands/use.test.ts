@@ -1,4 +1,4 @@
-import { runUse } from '../../src/commands/use';
+import { formatUseResultLines, runUse } from '../../src/commands/use';
 import { Config } from '../../src/lib/config';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -113,5 +113,33 @@ describe('use command', () => {
     const target = await fs.readlink(path.join(projectDir, '.claude', 'skills', 'web-perf'));
     expect(target).toBe(path.join(testDir, 'coding', 'web-perf'));
     await expect(fs.access(path.join(projectDir, '.claude', 'skills', 'git-commit'))).rejects.toBeTruthy();
+  });
+
+  it('formats activated skills grouped by agent target', () => {
+    const lines = formatUseResultLines({
+      projectPath: projectDir,
+      profile: 'test',
+      skills: [
+        { name: 'web-perf', targetPath: '.claude/skills/web-perf', status: 'linked' },
+        { name: 'scss', targetPath: '.claude/skills/scss', status: 'linked' },
+        { name: 'web-perf', targetPath: '.codex/skills/web-perf', status: 'linked' },
+      ],
+    });
+
+    expect(lines).toEqual([
+      '',
+      'Activating preset: test',
+      'Linked 3 skills into this project.',
+      '',
+      'Claude Code (2 skills):',
+      '  - web-perf -> .claude/skills/web-perf',
+      '  - scss -> .claude/skills/scss',
+      '',
+      'Codex (1 skill):',
+      '  - web-perf -> .codex/skills/web-perf',
+      '',
+      'Done. Restart Claude Code or Codex if the tool has already loaded this project.',
+      '',
+    ]);
   });
 });

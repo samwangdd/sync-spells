@@ -11,10 +11,10 @@ export const SkillDrawer: React.FC<{ skill: SkillCardData; onClose: () => void }
   }, [skill.ref]);
 
   return (
-    <div className="fixed inset-0 z-20 flex cursor-pointer justify-end bg-black/20" onClick={onClose}>
+    <div className="fixed inset-0 z-20 flex cursor-pointer justify-end bg-[var(--mx-overlay)]" onClick={onClose}>
       <aside className="h-full w-full max-w-xl cursor-default overflow-y-auto bg-[var(--mx-surface)] p-6" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{skill.name}</h2>
+          <h2 className="mx-serif text-xl font-semibold">{skill.name}</h2>
           <button onClick={onClose} className="text-[var(--mx-muted)]">✕</button>
         </div>
         <p className="mb-2 text-sm text-[var(--mx-muted)]">{skill.ref}</p>

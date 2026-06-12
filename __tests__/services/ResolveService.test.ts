@@ -23,6 +23,8 @@ describe('ResolveService', () => {
       JSON.stringify({ name:'legacy', skills:['global/git-commit','coding/scss'] }));
     await fs.writeFile(path.join(dir,'profiles','parked.json'),
       JSON.stringify({ name:'parked', categories:['coding','inbox'], extras:['inbox/debug-5'] }));
+    await fs.writeFile(path.join(dir,'profiles','without-web-perf.json'),
+      JSON.stringify({ name:'without-web-perf', categories:['coding'], excludes:['coding/web-perf'] }));
     cfg = { source: dir, tools: {}, profilesDir: path.join(dir,'profiles') };
   });
   afterEach(async () => { await fs.rm(dir, { recursive: true, force: true }); });
@@ -45,6 +47,10 @@ describe('ResolveService', () => {
     const r = await mk().resolve('parked');
     expect(r.skills.sort()).toEqual(['coding/scss','coding/web-perf'].sort());
     expect(r.skills.some(s => s.startsWith('inbox/'))).toBe(false);
+  });
+  it('removes excluded skills from category resolution', async () => {
+    const r = await mk().resolve('without-web-perf');
+    expect(r.skills).toEqual(['coding/scss']);
   });
   it('throws on circular extends', async () => {
     await fs.writeFile(path.join(dir,'profiles','a.json'), JSON.stringify({name:'a',extends:'b'}));

@@ -3,6 +3,7 @@ export interface Profile {
   description?: string;
   categories?: string[];
   extras?: string[];
+  excludes?: string[];
   extends?: string | null;
   skills?: string[];
 }

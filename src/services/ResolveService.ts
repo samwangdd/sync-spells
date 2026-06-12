@@ -40,7 +40,9 @@ export class ResolveService {
     sources.legacy = (profile.skills || [])
       .filter((s: string) => !s.startsWith('global/') && !s.startsWith('inbox/'));
 
+    const excludes = new Set((profile.excludes || []).map(s => s.trim()).filter(Boolean));
     const ordered = [...sources.extends, ...sources.categories, ...sources.extras, ...sources.legacy]
+      .filter((s: string) => !excludes.has(s))
       .filter((s: string) => !s.startsWith('global/') && !s.startsWith('inbox/'));
     const byName = new Map<string, string>();
     for (const s of ordered) byName.set(path.basename(s), s);
