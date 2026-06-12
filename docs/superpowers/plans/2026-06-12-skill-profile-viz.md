@@ -245,8 +245,10 @@ describe('resolveRecipe', () => {
   });
 
   it('dedups by full ref, preserving first position', () => {
+    // categories expand BEFORE extras, so the duplicate in extras is dropped and
+    // position comes from the category expansion (first occurrence wins).
     expect(resolveRecipe({ extras: ['coding/scss'], categories: ['coding'] }, catalog))
-      .toEqual(['coding/scss', 'coding/git-commit', 'coding/web-perf']);
+      .toEqual(['coding/git-commit', 'coding/scss', 'coding/web-perf']);
   });
 
   it('expands an existing-but-empty category to nothing (key present)', () => {
