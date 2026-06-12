@@ -10,7 +10,6 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "noEmit": true,
-    "baseUrl": ".",
     "paths": { "@shared/*": ["../src/shared/*"] }
   },
   "include": ["src", "vite.config.ts", "../src/shared"]
