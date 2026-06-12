@@ -68,4 +68,17 @@ describe('ProfileWriter', () => {
     const written = await fs.readFile(path.join(dir, 'profiles', 'code.json'), 'utf8');
     expect(written).toBe(`${JSON.stringify({ name: 'code', categories: ['coding'] }, null, 2)}\n`);
   });
+
+  it('accepts refs/categories with surrounding whitespace (trim-consistent with resolveRecipe)', async () => {
+    const { ProfileWriter } = load(home);
+    // '  coding  ' should be trimmed to 'coding' before the known-category membership check
+    // ' workflow/task-run ' should be trimmed to 'workflow/task-run' before the known-ref check
+    const view = await new ProfileWriter(cfg).write('code', {
+      name: 'code',
+      categories: ['  coding  '],
+      extras: [' workflow/task-run '],
+    });
+    expect(view.resolvedRefs).toContain('coding/git-commit');
+    expect(view.resolvedRefs).toContain('workflow/task-run');
+  });
 });

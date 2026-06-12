@@ -1,6 +1,7 @@
-import { describe, it, expect } from '@jest/globals';
-import { createApiHandler } from '../../src/web/server';
+import { describe, it, expect, afterEach } from '@jest/globals';
+import { createApiHandler, createServer, startServer } from '../../src/web/server';
 import { AppState, ProfileView } from '../../src/shared/contract';
+import * as http from 'http';
 
 const sampleState: AppState = { profiles: [], skills: [], categories: [] };
 const sampleView: ProfileView = {
@@ -55,5 +56,34 @@ describe('createApiHandler', () => {
   it('unknown route returns 404', async () => {
     const res = await handle('GET', '/api/nope', undefined);
     expect(res.status).toBe(404);
+  });
+});
+
+describe('startServer', () => {
+  const PORT = 4319;
+  let blocker: http.Server;
+  let realServer: http.Server;
+
+  afterEach(async () => {
+    await Promise.all([
+      realServer ? new Promise<void>((r) => realServer.close(() => r())) : Promise.resolve(),
+      blocker ? new Promise<void>((r) => blocker.close(() => r())) : Promise.resolve(),
+    ]);
+  });
+
+  it('auto-increments to the next port when preferred is busy', async () => {
+    // occupy PORT
+    blocker = http.createServer();
+    await new Promise<void>((r) => blocker.listen(PORT, r));
+
+    const trivialDeps = {
+      getState: async () => ({ profiles: [], skills: [], categories: [] }),
+      writeProfile: async () => ({} as any),
+      readMarkdown: async () => '',
+    };
+    realServer = createServer(trivialDeps, '/tmp/nonexistent-dist');
+
+    const got = await startServer(realServer, PORT);
+    expect(got).toBe(PORT + 1);
   });
 });

@@ -8,6 +8,15 @@ import { ProfileWriter } from '../web/ProfileWriter';
 import { ApiDeps, createServer, startServer } from '../web/server';
 import * as http from 'http';
 
+export const resolveWithin = (base: string, ref: string): string => {
+  const resolved = path.resolve(base, ref);
+  const baseResolved = path.resolve(base);
+  if (resolved !== baseResolved && !resolved.startsWith(baseResolved + path.sep)) {
+    throw new Error(`Path traversal detected: ${ref}`);
+  }
+  return resolved;
+};
+
 export interface WebHandle {
   getState: ApiDeps['getState'];
   createServer: (distDir: string) => http.Server;
@@ -20,8 +29,8 @@ export const runWeb = (config: Config): WebHandle => {
     getState: () => catalog.getState(),
     writeProfile: (name, body) => writer.write(name, body),
     readMarkdown: async (ref) => {
-      const safeRef = ref.replace(/\.\.+/g, '');
-      return fs.readFile(path.join(config.source, safeRef, 'SKILL.md'), 'utf8');
+      const skillDir = resolveWithin(config.source, ref);
+      return fs.readFile(path.join(skillDir, 'SKILL.md'), 'utf8');
     },
   };
   return { getState: deps.getState, createServer: (distDir: string) => createServer(deps, distDir) };

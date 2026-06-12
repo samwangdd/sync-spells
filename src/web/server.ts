@@ -104,16 +104,21 @@ export const startServer = (server: http.Server, preferredPort: number, maxAttem
     let port = preferredPort;
     let attempts = 0;
     const tryListen = () => {
-      server.once('error', (err: NodeJS.ErrnoException) => {
+      const onError = (err: NodeJS.ErrnoException) => {
         if (err.code === 'EADDRINUSE' && attempts < maxAttempts) {
           attempts++;
           port++;
+          server.removeAllListeners('listening');
           tryListen();
         } else {
           reject(err);
         }
+      };
+      server.once('error', onError);
+      server.listen(port, () => {
+        server.removeListener('error', onError);
+        resolve(port);
       });
-      server.listen(port, () => resolve(port));
     };
     tryListen();
   });

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { Config } from '../../src/lib/config';
-import { runWeb } from '../../src/commands/web';
+import { runWeb, resolveWithin } from '../../src/commands/web';
 
 describe('runWeb', () => {
   let dir: string; let cfg: Config;
@@ -23,5 +23,25 @@ describe('runWeb', () => {
     expect(state.profiles.map((p) => p.name)).toContain('code');
     expect(state.skills.map((s) => s.ref)).toContain('coding/git-commit');
     expect(typeof handle.createServer).toBe('function');
+  });
+});
+
+describe('resolveWithin', () => {
+  it('returns resolved path for a safe relative ref', () => {
+    const result = resolveWithin('/base', 'coding/git-commit');
+    expect(result).toBe(path.resolve('/base', 'coding/git-commit'));
+  });
+
+  it('throws on path traversal via ../', () => {
+    expect(() => resolveWithin('/base', '../../etc/passwd')).toThrow(/Path traversal/);
+  });
+
+  it('throws on absolute ref that escapes base', () => {
+    expect(() => resolveWithin('/base', '/etc/passwd')).toThrow(/Path traversal/);
+  });
+
+  it('returns the base itself for an empty ref', () => {
+    const result = resolveWithin('/base', '');
+    expect(result).toBe(path.resolve('/base'));
   });
 });

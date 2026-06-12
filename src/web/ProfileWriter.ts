@@ -31,10 +31,10 @@ export class ProfileWriter {
     const knownRefs = new Set(Object.values(catalogByCategory).flat());
 
     for (const category of recipe.categories ?? []) {
-      if (!knownCategories.has(category)) throw new ProfileValidationError(`Unknown category: ${category}`);
+      if (!knownCategories.has(category.trim())) throw new ProfileValidationError(`Unknown category: ${category}`);
     }
     for (const ref of [...(recipe.skills ?? []), ...(recipe.extras ?? []), ...(recipe.excludes ?? [])]) {
-      if (!knownRefs.has(ref)) throw new ProfileValidationError(`Unknown skill ref: ${ref}`);
+      if (!knownRefs.has(ref.trim())) throw new ProfileValidationError(`Unknown skill ref: ${ref}`);
     }
 
     const profilesDir = this.config.profilesDir || path.join(this.config.source, 'profiles');
