@@ -100,19 +100,19 @@ export const ScenesView: React.FC<{
             value={draft.name}
             onChange={(e) => { setDraft({ ...draft, name: e.target.value }); setDirty(true); }}
             placeholder="场景名称"
-            className="w-64 rounded border border-[var(--mx-border)] bg-[var(--mx-bg)] px-3 py-1.5 text-xl font-semibold outline-none focus:border-[var(--mx-primary)]"
+            className="mx-serif w-64 rounded border border-[var(--mx-border)] bg-[var(--mx-bg)] px-3 py-1.5 text-xl font-semibold outline-none focus:border-[var(--mx-primary)]"
           />
         ) : (
           <button
             type="button"
             onClick={goBack}
-            className="cursor-pointer text-left text-xl font-semibold hover:text-[var(--mx-primary)]"
+            className="mx-serif cursor-pointer text-left text-xl font-semibold hover:text-[var(--mx-primary)]"
           >
             {draft.name}
           </button>
         )}
-        {dirty && <span className="rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-700">未保存</span>}
-        {nameExists && <span className="rounded bg-red-50 px-2 py-0.5 text-xs text-red-700">名称已存在</span>}
+        {dirty && <span className="rounded bg-[var(--mx-warning-soft)] px-2 py-0.5 text-xs text-[var(--mx-warning)]">未保存</span>}
+        {nameExists && <span className="rounded bg-[var(--mx-danger-soft)] px-2 py-0.5 text-xs text-[var(--mx-danger)]">名称已存在</span>}
         <button onClick={save} disabled={!canSave}
           className="ml-auto rounded-full bg-[var(--mx-primary)] px-4 py-1.5 text-sm text-white disabled:opacity-40">
           {saving ? '保存中…' : '保存'}

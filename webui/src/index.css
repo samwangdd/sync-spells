@@ -1,15 +1,44 @@
 @import "tailwindcss";
 
 :root {
-  --mx-bg: #f7f6f3;
+  --mx-bg: #f5f4ef;
   --mx-surface: #ffffff;
-  --mx-border: #e7e4de;
+  --mx-surface-hover: #faf9f5;
+  --mx-border: #e8e5dd;
   --mx-text: #2b2a28;
   --mx-muted: #8a857c;
-  --mx-primary: #2f6df6;
-  --mx-primary-soft: #eaf1ff;
-  --mx-shadow: 0 1px 3px rgba(35, 33, 30, 0.08), 0 4px 12px rgba(35, 33, 30, 0.05);
+  --mx-primary: #c96442;
+  --mx-primary-soft: #f6ece8;
+
+  --mx-danger: #b3261e;
+  --mx-danger-soft: #fdecea;
+  --mx-warning: #9a6b18;
+  --mx-warning-soft: #fdf3e3;
+  --mx-overlay: rgba(35, 33, 30, 0.3);
+
+  --mx-shadow: 0 1px 2px rgba(35, 33, 30, 0.05), 0 4px 12px rgba(35, 33, 30, 0.04);
   --mx-radius: 14px;
+
+  --mx-font-serif: ui-serif, Georgia, "Times New Roman", serif;
+}
+
+[data-theme="dark"] {
+  --mx-bg: #262624;
+  --mx-surface: #30302e;
+  --mx-surface-hover: #383735;
+  --mx-border: #403e3a;
+  --mx-text: #f0eee6;
+  --mx-muted: #a39e94;
+  --mx-primary: #d97757;
+  --mx-primary-soft: #3a2f2a;
+
+  --mx-danger: #f2998c;
+  --mx-danger-soft: #3a2723;
+  --mx-warning: #e0b766;
+  --mx-warning-soft: #3a3122;
+  --mx-overlay: rgba(0, 0, 0, 0.55);
+
+  --mx-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 body {
@@ -17,6 +46,10 @@ body {
   background: var(--mx-bg);
   color: var(--mx-text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.mx-serif {
+  font-family: var(--mx-font-serif);
 }
 
 button:not(:disabled),

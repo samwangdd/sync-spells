@@ -36,7 +36,7 @@ export const CatalogView: React.FC<{
   const openSkill = state.skills.find((s) => s.ref === openRef) ?? null;
 
   const removeSkill = async (skill: SkillCardData) => {
-    if (!window.confirm(`把 ${skill.ref} 从当前 Category 移到 inbox？`)) return;
+    if (!window.confirm(`把 ${skill.ref} 从当前分类移到 inbox？`)) return;
     setRemovingRef(skill.ref);
     onError(null);
     try {
@@ -78,7 +78,7 @@ export const CatalogView: React.FC<{
   };
 
   const addCategory = async () => {
-    const name = window.prompt('New category name');
+    const name = window.prompt('分类名称');
     const categoryName = name?.trim();
     if (!categoryName) return;
     onError(null);
@@ -106,12 +106,12 @@ export const CatalogView: React.FC<{
           className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-[var(--mx-border)] bg-[var(--mx-surface)] px-3 py-1 text-sm text-[var(--mx-muted)] transition hover:border-[var(--mx-primary)] hover:text-[var(--mx-primary)]"
         >
           <span className="flex h-4 w-4 items-center justify-center rounded-full border border-current text-xs leading-none">+</span>
-          Add New Category
+          新增分类
         </button>
       </div>
       {byCategory.map(([cat, skills]) => (
         <section key={cat} className="mb-8">
-          <h3 className="mb-3 text-[1.26rem] font-semibold uppercase tracking-wide text-black">{cat}</h3>
+          <h3 className="mx-serif mb-3 text-[1.26rem] font-semibold uppercase tracking-wide text-[var(--mx-text)]">{cat}</h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {skills.map((s) => (
               <SkillCard
@@ -127,13 +127,13 @@ export const CatalogView: React.FC<{
         </section>
       ))}
       {moveSkill && (
-        <div className="fixed inset-0 z-30 flex cursor-pointer items-center justify-center bg-black/30 px-4" onClick={() => setMoveSkill(null)}>
+        <div className="fixed inset-0 z-30 flex cursor-pointer items-center justify-center bg-[var(--mx-overlay)] px-4" onClick={() => setMoveSkill(null)}>
           <div className="w-full max-w-sm cursor-default rounded-[var(--mx-radius)] bg-[var(--mx-surface)] p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="mb-4">
-              <h2 className="text-base font-semibold">Move to</h2>
+              <h2 className="mx-serif text-lg font-semibold">移动到分类</h2>
               <p className="mt-1 text-sm text-[var(--mx-muted)]">{moveSkill.ref}</p>
             </div>
-            <label className="mb-2 block text-sm font-medium" htmlFor="move-target-category">Category</label>
+            <label className="mb-2 block text-sm font-medium" htmlFor="move-target-category">分类</label>
             <select
               id="move-target-category"
               value={targetCategory}
@@ -145,7 +145,7 @@ export const CatalogView: React.FC<{
               ))}
             </select>
             {moveTargets.length === 0 && (
-              <p className="mb-4 text-sm text-[var(--mx-muted)]">没有其他 Category 可选。</p>
+              <p className="mb-4 text-sm text-[var(--mx-muted)]">没有其他分类可选。</p>
             )}
             <div className="flex justify-end gap-2">
               <button
@@ -153,7 +153,7 @@ export const CatalogView: React.FC<{
                 onClick={() => setMoveSkill(null)}
                 className="rounded-[var(--mx-radius)] border border-[var(--mx-border)] px-3 py-1.5 text-sm text-[var(--mx-muted)] hover:bg-[var(--mx-bg)]"
               >
-                Cancel
+                取消
               </button>
               <button
                 type="button"
@@ -161,7 +161,7 @@ export const CatalogView: React.FC<{
                 disabled={!targetCategory || removingRef === moveSkill.ref}
                 className="rounded-[var(--mx-radius)] bg-[var(--mx-primary)] px-3 py-1.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {removingRef === moveSkill.ref ? 'Moving...' : 'Move'}
+                {removingRef === moveSkill.ref ? '移动中…' : '移动'}
               </button>
             </div>
           </div>
