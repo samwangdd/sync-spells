@@ -175,6 +175,17 @@ spells skill localize <skill> --to inbox
 
 `spells use [preset]` resolves the explicit preset or the current directory's longest matching binding, then links project skills directly from the skill category into `.codex/skills` and `.claude/skills`. Inbox skills are intentionally excluded from project-level links.
 
+### `spells web`
+
+Launch a local web UI to browse all skills, inspect each profile's resolved skill set, and edit a profile recipe (`categories` / `extras` / `excludes`) with a live resolve preview before writing back to JSON.
+
+```bash
+npm run web:build        # one-time / after frontend changes
+spells web               # http://localhost:4178, opens browser
+spells web --port 5000   # custom port (auto-increments if busy)
+spells web --no-open     # do not open the browser
+```
+
 ## Local Development
 
 ```bash
