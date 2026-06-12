@@ -10,7 +10,7 @@ type Tab = 'scenes' | 'catalog';
 
 const currentTheme = (): Theme => (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
 const tabHelp: Record<Tab, string> = {
-  scenes: '场景是完成某个功能或某项工作时所需要的多种 skills 组合，如 Writing、Marketing；组合成场景后，可以在多个项目中复用。',
+  scenes: '场景是完成某个项目时所需要的多种 skills 组合，比如市场调研不仅需要 Marketing Research，还需要 Writing skill；组合成场景后，便于在多个项目中复用。',
   catalog: '分类是 skills 的组织方式，通常按某一类技能划分，如 Writing、Coding。',
 };
 
