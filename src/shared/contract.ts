@@ -6,6 +6,7 @@ export const ProfileRecipeSchema = z.object({
   extras: z.array(z.string()).optional(),
   excludes: z.array(z.string()).optional(),
   skills: z.array(z.string()).optional(),
+  boundPaths: z.array(z.string()).optional(),
 });
 export type ProfileRecipe = z.infer<typeof ProfileRecipeSchema>;
 
@@ -51,3 +52,9 @@ export type ApiError = z.infer<typeof ApiErrorSchema>;
 
 export const SkillMarkdownSchema = z.object({ markdown: z.string() });
 export type SkillMarkdown = z.infer<typeof SkillMarkdownSchema>;
+
+export const RemoveSkillResultSchema = z.object({
+  removedRef: z.string(),
+  movedTo: z.string(),
+});
+export type RemoveSkillResult = z.infer<typeof RemoveSkillResultSchema>;

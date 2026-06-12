@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { AppState } from '@shared/contract';
 import { fetchState } from './api';
 import { ScenesView } from './views/ScenesView';
 import { CatalogView } from './views/CatalogView';
+import { isSearchShortcut } from './searchShortcut';
 
 type Tab = 'scenes' | 'catalog';
 
@@ -11,9 +12,20 @@ export const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('scenes');
   const [search, setSearch] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const reload = () => fetchState().then(setState).catch((e) => setError(String(e.message || e)));
   useEffect(() => { reload(); }, []);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!isSearchShortcut(event)) return;
+      event.preventDefault();
+      searchInputRef.current?.focus();
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   return (
     <div className="min-h-screen">
@@ -28,8 +40,18 @@ export const App: React.FC = () => {
             </button>
           ))}
         </nav>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="搜索 skill / 场景…"
-          className="ml-auto w-64 rounded-full border border-[var(--mx-border)] bg-[var(--mx-bg)] px-4 py-1.5 text-sm outline-none focus:border-[var(--mx-primary)]" />
+        <div className="ml-auto flex w-64 items-center gap-2 rounded-full border border-[var(--mx-border)] bg-[var(--mx-bg)] px-3 py-1.5 focus-within:border-[var(--mx-primary)]">
+          <kbd className="rounded border border-[var(--mx-border)] bg-[var(--mx-surface)] px-1.5 py-0.5 text-[0.68rem] font-medium leading-none text-[var(--mx-muted)]">
+            ⌘K
+          </kbd>
+          <input
+            ref={searchInputRef}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="搜索 skill / 场景…"
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+          />
+        </div>
       </header>
 
       <main className="mx-auto max-w-6xl px-6 py-6">
@@ -39,7 +61,7 @@ export const App: React.FC = () => {
         ) : tab === 'scenes' ? (
           <ScenesView state={state} search={search} onSaved={reload} onError={setError} />
         ) : (
-          <CatalogView state={state} search={search} />
+          <CatalogView state={state} search={search} onSaved={reload} onError={setError} />
         )}
       </main>
     </div>

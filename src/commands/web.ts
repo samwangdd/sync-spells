@@ -32,6 +32,9 @@ export const runWeb = (config: Config): WebHandle => {
       const skillDir = resolveWithin(config.source, ref);
       return fs.readFile(path.join(skillDir, 'SKILL.md'), 'utf8');
     },
+    removeSkillFromCategory: (category, skill) => catalog.removeSkillFromCategory(category, skill),
+    moveSkillToCategory: (category, skill, targetCategory) => catalog.moveSkillToCategory(category, skill, targetCategory),
+    createCategory: (name) => catalog.createCategory(name),
   };
   return { getState: deps.getState, createServer: (distDir: string) => createServer(deps, distDir) };
 };

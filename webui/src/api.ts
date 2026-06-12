@@ -1,6 +1,6 @@
 import {
-  AppStateSchema, ProfileViewSchema, SkillMarkdownSchema,
-  type AppState, type ProfileRecipe, type ProfileView, type SkillMarkdown,
+  AppStateSchema, CategoryViewSchema, ProfileViewSchema, SkillMarkdownSchema, RemoveSkillResultSchema,
+  type AppState, type CategoryView, type ProfileRecipe, type ProfileView, type SkillMarkdown, type RemoveSkillResult,
 } from '@shared/contract';
 
 const json = async (res: Response): Promise<unknown> => {
@@ -29,4 +29,39 @@ export const saveProfile = async (name: string, recipe: ProfileRecipe): Promise<
 export const fetchMarkdown = async (ref: string): Promise<SkillMarkdown> =>
   SkillMarkdownSchema.parse(
     await json(await fetch(`/api/skill/${encodeURIComponent(ref)}/markdown`)),
+  );
+
+export const removeSkillFromCategory = async (category: string, skill: string): Promise<RemoveSkillResult> =>
+  RemoveSkillResultSchema.parse(
+    await json(
+      await fetch(`/api/categories/${encodeURIComponent(category)}/skills/${encodeURIComponent(skill)}`, {
+        method: 'DELETE',
+      }),
+    ),
+  );
+
+export const moveSkillToCategory = async (
+  category: string,
+  skill: string,
+  targetCategory: string,
+): Promise<RemoveSkillResult> =>
+  RemoveSkillResultSchema.parse(
+    await json(
+      await fetch(`/api/categories/${encodeURIComponent(category)}/skills/${encodeURIComponent(skill)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetCategory }),
+      }),
+    ),
+  );
+
+export const createCategory = async (name: string): Promise<CategoryView> =>
+  CategoryViewSchema.parse(
+    await json(
+      await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      }),
+    ),
   );

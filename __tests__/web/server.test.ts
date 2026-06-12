@@ -19,6 +19,15 @@ const deps = {
     return sampleView;
   },
   readMarkdown: async (ref: string) => `# ${ref}`,
+  removeSkillFromCategory: async (category: string, skill: string) => ({
+    movedTo: `inbox/${skill}`,
+    removedRef: `${category}/${skill}`,
+  }),
+  moveSkillToCategory: async (category: string, skill: string, targetCategory: string) => ({
+    movedTo: `${targetCategory}/${skill}`,
+    removedRef: `${category}/${skill}`,
+  }),
+  createCategory: async (name: string) => ({ name, skillRefs: [] }),
 };
 
 describe('createApiHandler', () => {
@@ -53,6 +62,30 @@ describe('createApiHandler', () => {
     expect((res.body as any).markdown).toBe('# coding/git-commit');
   });
 
+  it('DELETE /api/categories/:category/skills/:skill removes a skill from that category', async () => {
+    const res = await handle('DELETE', '/api/categories/coding/skills/git-commit', undefined);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      movedTo: 'inbox/git-commit',
+      removedRef: 'coding/git-commit',
+    });
+  });
+
+  it('PATCH /api/categories/:category/skills/:skill moves a skill to another category', async () => {
+    const res = await handle('PATCH', '/api/categories/coding/skills/scss', { targetCategory: 'workflow' });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      movedTo: 'workflow/scss',
+      removedRef: 'coding/scss',
+    });
+  });
+
+  it('POST /api/categories creates a category', async () => {
+    const res = await handle('POST', '/api/categories', { name: 'research' });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ name: 'research', skillRefs: [] });
+  });
+
   it('unknown route returns 404', async () => {
     const res = await handle('GET', '/api/nope', undefined);
     expect(res.status).toBe(404);
@@ -80,6 +113,9 @@ describe('startServer', () => {
       getState: async () => ({ profiles: [], skills: [], categories: [] }),
       writeProfile: async () => ({} as any),
       readMarkdown: async () => '',
+      removeSkillFromCategory: async () => ({ removedRef: '', movedTo: '' }),
+      moveSkillToCategory: async () => ({ removedRef: '', movedTo: '' }),
+      createCategory: async () => ({ name: '', skillRefs: [] }),
     };
     realServer = createServer(trivialDeps, '/tmp/nonexistent-dist');
 

@@ -18,3 +18,17 @@ body {
   color: var(--mx-text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
+
+button:not(:disabled),
+select:not(:disabled),
+summary,
+a[href],
+[role="button"]:not([aria-disabled="true"]),
+label[for],
+input[type="checkbox"]:not(:disabled),
+input[type="radio"]:not(:disabled),
+input[type="file"]:not(:disabled),
+input[type="color"]:not(:disabled),
+input[type="range"]:not(:disabled) {
+  cursor: pointer;
+}

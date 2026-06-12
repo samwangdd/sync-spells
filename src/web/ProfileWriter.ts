@@ -1,6 +1,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { Config } from '../lib/config';
+import { Config, expandHome, writeConfig } from '../lib/config';
 import { backupPath } from '../lib/backup';
 import { ProfileRecipeSchema, ProfileView } from '../shared/contract';
 import { SkillCatalogService, buildProfileView } from './SkillCatalogService';
@@ -56,6 +56,21 @@ export class ProfileWriter {
 
     await fs.mkdir(profilesDir, { recursive: true });
     await fs.writeFile(filePath, `${JSON.stringify(output, null, 2)}\n`, 'utf8');
+
+    if (recipe.boundPaths) {
+      const nextBindings = [
+        ...(this.config.projectBindings ?? []).filter((binding) => binding.profile !== recipe.name),
+        ...recipe.boundPaths
+          .map((bindingPath) => bindingPath.trim())
+          .filter(Boolean)
+          .map((bindingPath) => ({
+            path: path.resolve(expandHome(bindingPath)),
+            profile: recipe.name,
+          })),
+      ].sort((a, b) => b.path.length - a.path.length);
+      this.config.projectBindings = nextBindings;
+      await writeConfig(this.config);
+    }
 
     return buildProfileView(
       { name: recipe.name, categories: recipe.categories, extras: recipe.extras, skills: recipe.skills,

@@ -3,10 +3,9 @@ import * as path from 'path';
 import { Config } from '../lib/config';
 import { Profile } from '../types';
 import { ProfileService } from '../services/ProfileService';
-import { SkillService } from '../services/SkillService';
 import { resolveRecipe } from '../shared/resolveRecipe';
 import { parseFrontmatter } from './frontmatter';
-import { AppState, ProfileView, SkillCard, CategoryView } from '../shared/contract';
+import { AppState, ProfileView, SkillCard, CategoryView, RemoveSkillResult } from '../shared/contract';
 
 export const buildProfileView = (
   profile: Profile,
@@ -34,29 +33,45 @@ export const buildProfileView = (
 
 export class SkillCatalogService {
   private profileSvc: ProfileService;
-  private skillSvc: SkillService;
 
   constructor(private config: Config) {
     this.profileSvc = new ProfileService(config);
-    this.skillSvc = new SkillService(config);
   }
 
+  /**
+   * Materialize-faithful catalog: a "skill" is a depth-1 directory `<category>/<skill>`
+   * that contains a SKILL.md, mirroring the depth-1 `<category>/<skill>/SKILL.md` layout
+   * scanned by scripts/materialize-profile.sh. Nested reference dirs and SKILL.md-less
+   * directories are NOT skills, so they never leak into category resolution. Every existing
+   * category directory under `source` (except the profiles directory) gets a key — possibly
+   * empty — so resolveRecipe can distinguish an existing-but-empty category from an unknown one.
+   */
   async buildCatalogByCategory(): Promise<Record<string, string[]>> {
-    const skills = await this.skillSvc.listSkills();
+    const profilesDir = path.resolve(this.config.profilesDir || path.join(this.config.source, 'profiles'));
+    const entries = await fs.readdir(this.config.source, { withFileTypes: true }).catch(() => []);
     const catalog: Record<string, string[]> = {};
-    for (const skill of skills) {
-      (catalog[skill.category] ??= []).push(skill.path);
-    }
-    for (const category of Object.keys(catalog)) {
-      catalog[category].sort();
+
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
+      const categoryDir = path.join(this.config.source, entry.name);
+      if (path.resolve(categoryDir) === profilesDir) continue; // the profiles folder is not a category
+
+      const children = await fs.readdir(categoryDir, { withFileTypes: true }).catch(() => []);
+      const refs: string[] = [];
+      for (const child of children) {
+        if (!child.isDirectory()) continue;
+        if (await this.hasSkillMd(path.join(categoryDir, child.name))) {
+          refs.push(`${entry.name}/${child.name}`);
+        }
+      }
+      catalog[entry.name] = refs.sort();
     }
     return catalog;
   }
 
   async getState(): Promise<AppState> {
-    const [profiles, skillInfos, catalog] = await Promise.all([
+    const [profiles, catalog] = await Promise.all([
       this.profileSvc.listProfiles(),
-      this.skillSvc.listSkills(),
       this.buildCatalogByCategory(),
     ]);
     const bindings = this.config.projectBindings ?? [];
@@ -64,16 +79,17 @@ export class SkillCatalogService {
     const profileViews = profiles.map((p) => buildProfileView(p, catalog, bindings));
     const resolvedByProfile = new Map(profileViews.map((v) => [v.name, new Set(v.resolvedRefs)]));
 
+    const allRefs = Object.values(catalog).flat();
     const skills: SkillCard[] = await Promise.all(
-      skillInfos.map(async (info): Promise<SkillCard> => {
-        const fm = await this.readFrontmatter(info.path);
+      allRefs.map(async (ref): Promise<SkillCard> => {
+        const fm = await this.readFrontmatter(ref);
         const inProfiles = profileViews
-          .filter((v) => resolvedByProfile.get(v.name)!.has(info.path))
+          .filter((v) => resolvedByProfile.get(v.name)!.has(ref))
           .map((v) => v.name);
         return {
-          ref: info.path,
-          name: info.name,
-          category: info.category,
+          ref,
+          name: path.basename(ref),
+          category: ref.split('/')[0],
           description: fm.description,
           version: fm.version,
           requiresBins: fm.requiresBins,
@@ -87,6 +103,75 @@ export class SkillCatalogService {
       .map((name) => ({ name, skillRefs: catalog[name] }));
 
     return { profiles: profileViews, skills, categories };
+  }
+
+  async removeSkillFromCategory(category: string, skill: string): Promise<RemoveSkillResult> {
+    return this.moveSkillToCategory(category, skill, 'inbox');
+  }
+
+  async createCategory(name: string): Promise<CategoryView> {
+    const category = name.trim();
+    this.assertDepthOneName(category, 'category');
+
+    const categoryDir = path.join(this.config.source, category);
+    if (await this.pathExists(categoryDir)) {
+      throw new Error(`Category already exists: ${category}`);
+    }
+
+    await fs.mkdir(categoryDir, { recursive: true });
+    return { name: category, skillRefs: [] };
+  }
+
+  async moveSkillToCategory(category: string, skill: string, targetCategory: string): Promise<RemoveSkillResult> {
+    this.assertDepthOneName(category, 'category');
+    this.assertDepthOneName(skill, 'skill');
+    this.assertDepthOneName(targetCategory, 'target category');
+
+    const sourceDir = path.join(this.config.source, category, skill);
+    if (!(await this.hasSkillMd(sourceDir))) {
+      throw new Error(`Skill not found: ${category}/${skill}`);
+    }
+
+    const targetCategoryDir = path.join(this.config.source, targetCategory);
+    const targetDir = path.join(targetCategoryDir, skill);
+    if (path.resolve(sourceDir) === path.resolve(targetDir)) {
+      throw new Error(`Skill is already in ${targetCategory}: ${skill}`);
+    }
+    if (await this.pathExists(targetDir)) {
+      throw new Error(`Target already exists: ${targetCategory}/${skill}`);
+    }
+
+    await fs.mkdir(targetCategoryDir, { recursive: true });
+    await fs.rename(sourceDir, targetDir);
+
+    return {
+      removedRef: `${category}/${skill}`,
+      movedTo: `${targetCategory}/${skill}`,
+    };
+  }
+
+  private async hasSkillMd(skillDir: string): Promise<boolean> {
+    try {
+      await fs.access(path.join(skillDir, 'SKILL.md'));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async pathExists(filePath: string): Promise<boolean> {
+    try {
+      await fs.access(filePath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private assertDepthOneName(value: string, label: string): void {
+    if (!value || value.includes('/') || value.includes('\\') || value === '.' || value === '..') {
+      throw new Error(`Invalid ${label}: ${value}`);
+    }
   }
 
   private async readFrontmatter(ref: string) {
