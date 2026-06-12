@@ -11,8 +11,8 @@ export const SkillDrawer: React.FC<{ skill: SkillCardData; onClose: () => void }
   }, [skill.ref]);
 
   return (
-    <div className="fixed inset-0 z-20 flex justify-end bg-black/20" onClick={onClose}>
-      <aside className="h-full w-full max-w-xl overflow-y-auto bg-[var(--mx-surface)] p-6" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-20 flex cursor-pointer justify-end bg-black/20" onClick={onClose}>
+      <aside className="h-full w-full max-w-xl cursor-default overflow-y-auto bg-[var(--mx-surface)] p-6" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">{skill.name}</h2>
           <button onClick={onClose} className="text-[var(--mx-muted)]">✕</button>

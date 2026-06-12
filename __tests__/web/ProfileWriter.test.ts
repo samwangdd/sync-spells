@@ -69,6 +69,22 @@ describe('ProfileWriter', () => {
     expect(written).toBe(`${JSON.stringify({ name: 'code', categories: ['coding'] }, null, 2)}\n`);
   });
 
+  it('updates project bindings when bound paths are provided', async () => {
+    const { ProfileWriter } = load(home);
+    const { readConfig, writeConfig } = await import('../../src/lib/config');
+    await writeConfig({ ...cfg, projectBindings: [{ path: path.join(home, 'old'), profile: 'code' }] });
+
+    await new ProfileWriter({ ...cfg, projectBindings: [{ path: path.join(home, 'old'), profile: 'code' }] }).write('code', {
+      name: 'code',
+      categories: ['coding'],
+      boundPaths: [path.join(home, 'new')],
+    });
+
+    expect((await readConfig()).projectBindings).toEqual([
+      { path: path.join(home, 'new'), profile: 'code' },
+    ]);
+  });
+
   it('accepts refs/categories with surrounding whitespace (trim-consistent with resolveRecipe)', async () => {
     const { ProfileWriter } = load(home);
     // '  coding  ' should be trimmed to 'coding' before the known-category membership check

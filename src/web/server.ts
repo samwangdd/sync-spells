@@ -1,12 +1,15 @@
 import * as http from 'http';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { AppState, ProfileView } from '../shared/contract';
+import { AppState, CategoryView, ProfileView, RemoveSkillResult } from '../shared/contract';
 
 export interface ApiDeps {
   getState: () => Promise<AppState>;
   writeProfile: (name: string, body: unknown) => Promise<ProfileView>;
   readMarkdown: (ref: string) => Promise<string>;
+  removeSkillFromCategory: (category: string, skill: string) => Promise<RemoveSkillResult>;
+  moveSkillToCategory: (category: string, skill: string, targetCategory: string) => Promise<RemoveSkillResult>;
+  createCategory: (name: string) => Promise<CategoryView>;
 }
 
 export interface ApiResult {
@@ -22,6 +25,18 @@ export const createApiHandler =
   async (method: string, urlPath: string, body: unknown): Promise<ApiResult> => {
     if (method === 'GET' && urlPath === '/api/state') {
       return { status: 200, body: await deps.getState() };
+    }
+
+    if (method === 'POST' && urlPath === '/api/categories') {
+      const name = typeof (body as { name?: unknown } | undefined)?.name === 'string'
+        ? (body as { name: string }).name
+        : '';
+      try {
+        return { status: 200, body: await deps.createCategory(name) };
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        return { status: 400, body: { error: message } };
+      }
     }
 
     const putMatch = urlPath.match(/^\/api\/profiles\/([^/]+)$/);
@@ -42,6 +57,32 @@ export const createApiHandler =
         return { status: 200, body: { markdown: await deps.readMarkdown(ref) } };
       } catch (e) {
         return { status: 404, body: { error: e instanceof Error ? e.message : String(e) } };
+      }
+    }
+
+    const removeSkillMatch = urlPath.match(/^\/api\/categories\/([^/]+)\/skills\/([^/]+)$/);
+    if (method === 'PATCH' && removeSkillMatch) {
+      const category = decodeURIComponent(removeSkillMatch[1]);
+      const skill = decodeURIComponent(removeSkillMatch[2]);
+      const targetCategory = typeof (body as { targetCategory?: unknown } | undefined)?.targetCategory === 'string'
+        ? (body as { targetCategory: string }).targetCategory
+        : '';
+      try {
+        return { status: 200, body: await deps.moveSkillToCategory(category, skill, targetCategory) };
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        return { status: 400, body: { error: message } };
+      }
+    }
+
+    if (method === 'DELETE' && removeSkillMatch) {
+      const category = decodeURIComponent(removeSkillMatch[1]);
+      const skill = decodeURIComponent(removeSkillMatch[2]);
+      try {
+        return { status: 200, body: await deps.removeSkillFromCategory(category, skill) };
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        return { status: 400, body: { error: message } };
       }
     }
 
@@ -73,7 +114,7 @@ export const createServer = (deps: ApiDeps, distDir: string): http.Server => {
     const urlPath = (req.url || '/').split('?')[0];
 
     if (urlPath.startsWith('/api/')) {
-      const body = req.method === 'PUT' || req.method === 'POST' ? await readBody(req) : undefined;
+      const body = req.method === 'PUT' || req.method === 'POST' || req.method === 'PATCH' ? await readBody(req) : undefined;
       const result = await apiHandler(req.method || 'GET', urlPath, body);
       res.writeHead(result.status, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify(result.body));

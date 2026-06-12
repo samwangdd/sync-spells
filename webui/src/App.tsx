@@ -39,7 +39,7 @@ export const App: React.FC = () => {
         ) : tab === 'scenes' ? (
           <ScenesView state={state} search={search} onSaved={reload} onError={setError} />
         ) : (
-          <CatalogView state={state} search={search} />
+          <CatalogView state={state} search={search} onSaved={reload} onError={setError} />
         )}
       </main>
     </div>

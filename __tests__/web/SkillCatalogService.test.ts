@@ -60,6 +60,17 @@ describe('SkillCatalogService', () => {
     expect(coding.skillRefs).toEqual(['coding/git-commit', 'coding/scss']);
   });
 
+  it('lists empty categories so newly-created categories are visible', async () => {
+    await fs.mkdir(path.join(dir, 'research'), { recursive: true });
+
+    const state = await new SkillCatalogService(cfg).getState();
+
+    expect(state.categories.find((c) => c.name === 'research')).toEqual({
+      name: 'research',
+      skillRefs: [],
+    });
+  });
+
   it('excludes a depth-1 directory that has no SKILL.md (phantom skill)', async () => {
     // e.g. coding/playwright-conditional-ui-mocking with no SKILL.md
     await fs.mkdir(path.join(dir, 'coding', 'phantom-no-skillmd'), { recursive: true });
@@ -96,5 +107,42 @@ describe('SkillCatalogService', () => {
   it('does not treat the profiles directory as a category', async () => {
     const state = await new SkillCatalogService(cfg).getState();
     expect(state.categories.some((c) => c.name === 'profiles')).toBe(false);
+  });
+
+  it('moves a skill to inbox when removing it from its category', async () => {
+    const svc = new SkillCatalogService(cfg);
+
+    await svc.removeSkillFromCategory('coding', 'git-commit');
+
+    await expect(fs.access(path.join(dir, 'coding', 'git-commit', 'SKILL.md'))).rejects.toThrow();
+    await expect(fs.access(path.join(dir, 'inbox', 'git-commit', 'SKILL.md'))).resolves.toBeUndefined();
+
+    const state = await svc.getState();
+    expect(state.skills.some((s) => s.ref === 'coding/git-commit')).toBe(false);
+    expect(state.skills.some((s) => s.ref === 'inbox/git-commit')).toBe(true);
+  });
+
+  it('moves a skill from one category to another category', async () => {
+    const svc = new SkillCatalogService(cfg);
+
+    const result = await svc.moveSkillToCategory('coding', 'scss', 'workflow');
+
+    expect(result).toEqual({ removedRef: 'coding/scss', movedTo: 'workflow/scss' });
+    await expect(fs.access(path.join(dir, 'coding', 'scss', 'SKILL.md'))).rejects.toThrow();
+    await expect(fs.access(path.join(dir, 'workflow', 'scss', 'SKILL.md'))).resolves.toBeUndefined();
+
+    const state = await svc.getState();
+    expect(state.skills.some((s) => s.ref === 'coding/scss')).toBe(false);
+    expect(state.skills.some((s) => s.ref === 'workflow/scss')).toBe(true);
+  });
+
+  it('creates an empty category directory', async () => {
+    const svc = new SkillCatalogService(cfg);
+
+    const result = await svc.createCategory('research');
+
+    expect(result).toEqual({ name: 'research', skillRefs: [] });
+    await expect(fs.access(path.join(dir, 'research'))).resolves.toBeUndefined();
+    await expect(svc.buildCatalogByCategory()).resolves.toMatchObject({ research: [] });
   });
 });

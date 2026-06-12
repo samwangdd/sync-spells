@@ -5,7 +5,7 @@ import { Profile } from '../types';
 import { ProfileService } from '../services/ProfileService';
 import { resolveRecipe } from '../shared/resolveRecipe';
 import { parseFrontmatter } from './frontmatter';
-import { AppState, ProfileView, SkillCard, CategoryView } from '../shared/contract';
+import { AppState, ProfileView, SkillCard, CategoryView, RemoveSkillResult } from '../shared/contract';
 
 export const buildProfileView = (
   profile: Profile,
@@ -99,11 +99,55 @@ export class SkillCatalogService {
     );
 
     const categories: CategoryView[] = Object.keys(catalog)
-      .filter((name) => catalog[name].length > 0)
       .sort()
       .map((name) => ({ name, skillRefs: catalog[name] }));
 
     return { profiles: profileViews, skills, categories };
+  }
+
+  async removeSkillFromCategory(category: string, skill: string): Promise<RemoveSkillResult> {
+    return this.moveSkillToCategory(category, skill, 'inbox');
+  }
+
+  async createCategory(name: string): Promise<CategoryView> {
+    const category = name.trim();
+    this.assertDepthOneName(category, 'category');
+
+    const categoryDir = path.join(this.config.source, category);
+    if (await this.pathExists(categoryDir)) {
+      throw new Error(`Category already exists: ${category}`);
+    }
+
+    await fs.mkdir(categoryDir, { recursive: true });
+    return { name: category, skillRefs: [] };
+  }
+
+  async moveSkillToCategory(category: string, skill: string, targetCategory: string): Promise<RemoveSkillResult> {
+    this.assertDepthOneName(category, 'category');
+    this.assertDepthOneName(skill, 'skill');
+    this.assertDepthOneName(targetCategory, 'target category');
+
+    const sourceDir = path.join(this.config.source, category, skill);
+    if (!(await this.hasSkillMd(sourceDir))) {
+      throw new Error(`Skill not found: ${category}/${skill}`);
+    }
+
+    const targetCategoryDir = path.join(this.config.source, targetCategory);
+    const targetDir = path.join(targetCategoryDir, skill);
+    if (path.resolve(sourceDir) === path.resolve(targetDir)) {
+      throw new Error(`Skill is already in ${targetCategory}: ${skill}`);
+    }
+    if (await this.pathExists(targetDir)) {
+      throw new Error(`Target already exists: ${targetCategory}/${skill}`);
+    }
+
+    await fs.mkdir(targetCategoryDir, { recursive: true });
+    await fs.rename(sourceDir, targetDir);
+
+    return {
+      removedRef: `${category}/${skill}`,
+      movedTo: `${targetCategory}/${skill}`,
+    };
   }
 
   private async hasSkillMd(skillDir: string): Promise<boolean> {
@@ -112,6 +156,21 @@ export class SkillCatalogService {
       return true;
     } catch {
       return false;
+    }
+  }
+
+  private async pathExists(filePath: string): Promise<boolean> {
+    try {
+      await fs.access(filePath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private assertDepthOneName(value: string, label: string): void {
+    if (!value || value.includes('/') || value.includes('\\') || value === '.' || value === '..') {
+      throw new Error(`Invalid ${label}: ${value}`);
     }
   }
 

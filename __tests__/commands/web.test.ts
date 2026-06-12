@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { PassThrough } from 'stream';
 import { Config } from '../../src/lib/config';
 import { runWeb, resolveWithin } from '../../src/commands/web';
 
@@ -23,6 +24,53 @@ describe('runWeb', () => {
     expect(state.profiles.map((p) => p.name)).toContain('code');
     expect(state.skills.map((s) => s.ref)).toContain('coding/git-commit');
     expect(typeof handle.createServer).toBe('function');
+  });
+
+  it('wires the remove skill API through the web server dependencies', async () => {
+    const handle = runWeb(cfg);
+    const server = handle.createServer('/tmp/nonexistent-dist');
+    const listener = server.listeners('request')[0] as (req: any, res: any) => void;
+    const response = {
+      status: 0,
+      body: '',
+      writeHead(status: number) { this.status = status; },
+      end(body: string) { this.body = body; },
+    };
+
+    await listener({ method: 'DELETE', url: '/api/categories/coding/skills/git-commit' }, response);
+
+    expect(response.status).toBe(200);
+    expect(JSON.parse(response.body)).toEqual({
+      removedRef: 'coding/git-commit',
+      movedTo: 'inbox/git-commit',
+    });
+    await expect(fs.access(path.join(dir, 'inbox', 'git-commit', 'SKILL.md'))).resolves.toBeUndefined();
+  });
+
+  it('wires the move skill API through the web server dependencies', async () => {
+    const handle = runWeb(cfg);
+    const server = handle.createServer('/tmp/nonexistent-dist');
+    const listener = server.listeners('request')[0] as (req: any, res: any) => void;
+    const response = {
+      status: 0,
+      body: '',
+      writeHead(status: number) { this.status = status; },
+      end(body: string) { this.body = body; },
+    };
+
+    const req = new PassThrough() as any;
+    req.method = 'PATCH';
+    req.url = '/api/categories/coding/skills/git-commit';
+    const handled = listener(req, response);
+    req.end(JSON.stringify({ targetCategory: 'workflow' }));
+    await handled;
+
+    expect(response.status).toBe(200);
+    expect(JSON.parse(response.body)).toEqual({
+      removedRef: 'coding/git-commit',
+      movedTo: 'workflow/git-commit',
+    });
+    await expect(fs.access(path.join(dir, 'workflow', 'git-commit', 'SKILL.md'))).resolves.toBeUndefined();
   });
 });
 
