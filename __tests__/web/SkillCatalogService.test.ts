@@ -59,4 +59,42 @@ describe('SkillCatalogService', () => {
     const coding = state.categories.find((c) => c.name === 'coding')!;
     expect(coding.skillRefs).toEqual(['coding/git-commit', 'coding/scss']);
   });
+
+  it('excludes a depth-1 directory that has no SKILL.md (phantom skill)', async () => {
+    // e.g. coding/playwright-conditional-ui-mocking with no SKILL.md
+    await fs.mkdir(path.join(dir, 'coding', 'phantom-no-skillmd'), { recursive: true });
+    const state = await new SkillCatalogService(cfg).getState();
+    expect(state.skills.some((s) => s.ref === 'coding/phantom-no-skillmd')).toBe(false);
+    const coding = state.categories.find((c) => c.name === 'coding')!;
+    expect(coding.skillRefs).toEqual(['coding/git-commit', 'coding/scss']);
+    const code = state.profiles.find((p) => p.name === 'code')!;
+    expect(code.resolvedRefs).not.toContain('coding/phantom-no-skillmd');
+  });
+
+  it('does not recurse into nested reference dirs lacking SKILL.md', async () => {
+    // e.g. coding/omf-shared/references/{ingest,mappings,patterns} — no SKILL.md anywhere
+    for (const leaf of ['ingest', 'mappings', 'patterns']) {
+      await fs.mkdir(path.join(dir, 'coding', 'omf-shared', 'references', leaf), { recursive: true });
+      await fs.writeFile(path.join(dir, 'coding', 'omf-shared', 'references', leaf, 'INDEX.md'), '# notes\n');
+    }
+    const state = await new SkillCatalogService(cfg).getState();
+    const phantomNames = ['ingest', 'mappings', 'patterns', 'omf-shared'];
+    expect(state.skills.filter((s) => phantomNames.includes(s.name))).toEqual([]);
+    expect(state.skills.some((s) => s.ref.startsWith('coding/omf-shared'))).toBe(false);
+    const all = state.profiles.find((p) => p.name === 'all')!;
+    expect(all.resolvedRefs).toEqual(['coding/git-commit', 'coding/scss']);
+  });
+
+  it('every listed skill has a readable SKILL.md (markdown endpoint never ENOENTs)', async () => {
+    await fs.mkdir(path.join(dir, 'coding', 'phantom-no-skillmd'), { recursive: true });
+    const state = await new SkillCatalogService(cfg).getState();
+    for (const skill of state.skills) {
+      await expect(fs.access(path.join(dir, skill.ref, 'SKILL.md'))).resolves.toBeUndefined();
+    }
+  });
+
+  it('does not treat the profiles directory as a category', async () => {
+    const state = await new SkillCatalogService(cfg).getState();
+    expect(state.categories.some((c) => c.name === 'profiles')).toBe(false);
+  });
 });
