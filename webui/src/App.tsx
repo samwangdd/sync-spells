@@ -5,19 +5,22 @@ import { ScenesView } from './views/ScenesView';
 import { CatalogView } from './views/CatalogView';
 import { isSearchShortcut } from './searchShortcut';
 import { nextTheme, THEME_STORAGE_KEY, type Theme } from './theme';
+import { buildCatalogUrlState, parseCatalogUrlState, resolveCategoryFromQuery, type QueryTab } from './urlState';
 
-type Tab = 'scenes' | 'catalog';
+type Tab = QueryTab;
 
 const currentTheme = (): Theme => (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
+const currentUrlState = () => parseCatalogUrlState(window.location.search);
 const tabHelp: Record<Tab, string> = {
-  scenes: '场景是完成某个项目时所需要的多种 skills 组合，比如市场调研不仅需要 Marketing Research，还需要 Writing skill；组合成场景后，便于在多个项目中复用。',
-  catalog: '分类是 skills 的组织方式，通常按某一类技能划分，如 Writing、Coding。',
+  scenes: '场景是不同分类 skills 的组合，通常为了完成某个项目，比如市场调研--不仅需要 Marketing Research，还需要 Writing skill；组合成为场景后，便于在多个项目中复用',
+  catalog: '分类是 skills 的组织方式，通常按某一类技能划分，如 Writing、Coding',
 };
 
 export const App: React.FC = () => {
   const [state, setState] = useState<AppState | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>('scenes');
+  const [tab, setTab] = useState<Tab>(() => currentUrlState().tab);
+  const [category, setCategory] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [theme, setTheme] = useState<Theme>(currentTheme);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -29,8 +32,17 @@ export const App: React.FC = () => {
     setTheme(next);
   };
 
-  const reload = () => fetchState().then(setState).catch((e) => setError(String(e.message || e)));
+  const reload = () => fetchState().then((nextState) => {
+    setState(nextState);
+    if (!state) setCategory(resolveCategoryFromQuery(currentUrlState().categorySlug, nextState.categories));
+  }).catch((e) => setError(String(e.message || e)));
   useEffect(() => { reload(); }, []);
+  useEffect(() => {
+    if (!state) return;
+    const nextQuery = buildCatalogUrlState(tab, category).toString();
+    const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash}`;
+    window.history.replaceState(null, '', nextUrl);
+  }, [state, tab, category]);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!isSearchShortcut(event)) return;
@@ -87,7 +99,7 @@ export const App: React.FC = () => {
         ) : tab === 'scenes' ? (
           <ScenesView state={state} search={search} onSaved={reload} onError={setError} />
         ) : (
-          <CatalogView state={state} search={search} onSaved={reload} onError={setError} />
+          <CatalogView state={state} search={search} category={category} onCategoryChange={setCategory} onSaved={reload} onError={setError} />
         )}
       </main>
     </div>

@@ -8,7 +8,9 @@ export const SkillCard: React.FC<{
   onRemove: () => void;
   onMoveTo: () => void;
   isRemoving: boolean;
-}> = ({ skill, onOpen, onRemove, onMoveTo, isRemoving }) => {
+  isSelected?: boolean;
+  onToggleSelected?: () => void;
+}> = ({ skill, onOpen, onRemove, onMoveTo, isRemoving, isSelected = false, onToggleSelected }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDetailsElement>(null);
 
@@ -30,6 +32,18 @@ export const SkillCard: React.FC<{
       className="relative flex flex-col gap-2 rounded-[var(--mx-radius)] border border-[var(--mx-border)] bg-[var(--mx-surface)] p-4 text-left transition hover:border-[var(--mx-primary)] hover:bg-[var(--mx-surface-hover)]"
       style={{ boxShadow: 'var(--mx-shadow)' }}>
       <div className="flex items-center justify-between gap-2">
+        <label
+          className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-[var(--mx-muted)] hover:bg-[var(--mx-bg)] hover:text-[var(--mx-primary)]"
+          title="选择 skill"
+          aria-label={`选择 ${skill.ref}`}
+        >
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={onToggleSelected}
+            className="h-4 w-4 accent-[var(--mx-primary)]"
+          />
+        </label>
         <button onClick={onOpen} className="min-w-0 flex-1 text-left font-medium hover:text-[var(--mx-primary)]">
           {skill.name}
         </button>
