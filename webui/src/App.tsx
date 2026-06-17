@@ -3,6 +3,7 @@ import type { AppState } from '@shared/contract';
 import { fetchState } from './api';
 import { ScenesView } from './views/ScenesView';
 import { CatalogView } from './views/CatalogView';
+import { Sidebar } from './components/Sidebar';
 import { isSearchShortcut } from './searchShortcut';
 import { nextTheme, THEME_STORAGE_KEY, type Theme } from './theme';
 import { buildCatalogUrlState, parseCatalogUrlState, resolveCategoryFromQuery, type QueryTab } from './urlState';
@@ -55,51 +56,45 @@ export const App: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-[var(--mx-border)] bg-[var(--mx-surface)] px-6 py-3"
-        style={{ boxShadow: 'var(--mx-shadow)' }}>
-        <h1 className="mx-serif text-xl font-semibold">Spells</h1>
-        <nav className="flex gap-1 rounded-full bg-[var(--mx-bg)] p-1">
-          {(['scenes', 'catalog'] as Tab[]).map((t) => (
-            <button key={t} onClick={() => setTab(t)}
-              className={`rounded-full px-4 py-1 text-sm ${tab === t ? 'bg-[var(--mx-primary)] text-white' : 'text-[var(--mx-muted)]'}`}>
-              {t === 'scenes' ? '场景' : '分类'}
-            </button>
-          ))}
-        </nav>
-        <div className="ml-auto flex w-64 items-center gap-2 rounded-full border border-[var(--mx-border)] bg-[var(--mx-bg)] px-3 py-1.5 focus-within:border-[var(--mx-primary)]">
-          <kbd className="inline-flex min-w-10 items-center justify-center gap-0.5 rounded-md border border-[var(--mx-border)] bg-[var(--mx-surface)] px-2 py-1 text-xs font-semibold leading-none text-[var(--mx-text)] shadow-[inset_0_-1px_0_rgba(35,33,30,0.1),0_1px_2px_rgba(35,33,30,0.07)]">
-            <span className="text-sm leading-none">⌘</span>
-            <span>K</span>
-          </kbd>
-          <input
-            ref={searchInputRef}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="搜索 skill / 场景…"
-            className="min-w-0 flex-1 bg-transparent text-sm outline-none"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={toggleTheme}
-          aria-label={theme === 'dark' ? '切换到亮色' : '切换到暗色'}
-          title={theme === 'dark' ? '切换到亮色' : '切换到暗色'}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--mx-border)] bg-[var(--mx-bg)] text-base text-[var(--mx-muted)] transition hover:border-[var(--mx-primary)] hover:text-[var(--mx-primary)]"
-        >
-          {theme === 'dark' ? '☀' : '☾'}
-        </button>
-      </header>
-
-      <main className="mx-auto max-w-6xl px-6 py-6">
-        {error && <div className="mb-4 rounded-lg bg-[var(--mx-danger-soft)] px-4 py-2 text-sm text-[var(--mx-danger)]">{error}</div>}
-        <p className="mb-5 text-sm leading-6 text-[var(--mx-muted)]">{tabHelp[tab]}</p>
+    <div className="flex h-screen overflow-hidden">
+      <Sidebar
+        tab={tab}
+        onTab={setTab}
+        profileCount={state?.profiles.length ?? 0}
+        skillCount={state?.skills.length ?? 0}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
+      <main className="flex-1 overflow-y-auto">
+        {error && (
+          <div className="mx-[30px] mt-6 rounded-[var(--radius-s)] border border-[var(--danger)] bg-[var(--danger-soft)] px-4 py-2 text-sm text-[var(--danger)]">
+            {error}
+          </div>
+        )}
         {!state ? (
-          <p className="text-[var(--mx-muted)]">Loading…</p>
+          <p className="px-[30px] py-6 text-[var(--fg-mute)]" style={{ fontFamily: 'var(--font-mono)' }}>Loading…</p>
         ) : tab === 'scenes' ? (
-          <ScenesView state={state} search={search} onSaved={reload} onError={setError} />
+          <ScenesView
+            state={state}
+            search={search}
+            onSearch={setSearch}
+            searchRef={searchInputRef}
+            subtitle={tabHelp.scenes}
+            onSaved={reload}
+            onError={setError}
+          />
         ) : (
-          <CatalogView state={state} search={search} category={category} onCategoryChange={setCategory} onSaved={reload} onError={setError} />
+          <CatalogView
+            state={state}
+            search={search}
+            onSearch={setSearch}
+            searchRef={searchInputRef}
+            subtitle={tabHelp.catalog}
+            category={category}
+            onCategoryChange={setCategory}
+            onSaved={reload}
+            onError={setError}
+          />
         )}
       </main>
     </div>

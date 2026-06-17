@@ -31,23 +31,23 @@ const ListEditor: React.FC<{ field: FieldKey; items: string[]; onChange: (next: 
       setDraft('');
     };
     return (
-      <div className="rounded-[var(--mx-radius)] border border-[var(--mx-border)] bg-[var(--mx-surface)] p-4">
+      <div className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--panel)] p-4">
         <h4 className="text-sm font-semibold">{copy.label}</h4>
-        <p className="mb-3 mt-1 text-xs leading-5 text-[var(--mx-muted)]">{copy.description}</p>
+        <p className="mb-3 mt-1 text-xs leading-5 text-[var(--fg-dim)]">{copy.description}</p>
         <div className="mb-2 flex flex-wrap gap-1.5">
           {items.map((it) => (
-            <span key={it} className="flex items-center gap-1 rounded bg-[var(--mx-bg)] px-2 py-0.5 text-xs">
+            <span key={it} className="flex items-center gap-1 rounded-[var(--radius-s)] bg-[var(--code)] px-2 py-0.5 text-xs" style={{ fontFamily: 'var(--font-mono)' }}>
               {it}
-              <button onClick={() => onChange(items.filter((x) => x !== it))} className="text-[var(--mx-muted)]">✕</button>
+              <button onClick={() => onChange(items.filter((x) => x !== it))} className="text-[var(--fg-mute)]">✕</button>
             </span>
           ))}
-          {items.length === 0 && <span className="text-xs text-[var(--mx-muted)]">（空）</span>}
+          {items.length === 0 && <span className="text-xs text-[var(--fg-mute)]">（空）</span>}
         </div>
         <div className="flex gap-2">
           <input list={`sugg-${field}`} value={draft} onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && add()} placeholder="新增…"
-            className="flex-1 rounded border border-[var(--mx-border)] px-2 py-1 text-sm outline-none focus:border-[var(--mx-primary)]" />
-          <button onClick={add} className="rounded bg-[var(--mx-primary)] px-3 py-1 text-sm text-white">添加</button>
+            className="flex-1 rounded-[var(--radius-s)] border border-[var(--border)] px-2 py-1 text-sm outline-none focus:border-[var(--accent)]" />
+          <button onClick={add} className="rounded-[var(--radius-s)] bg-[var(--accent)] px-3 py-1 text-sm text-[var(--accent-fg)]">添加</button>
           {suggestions && <datalist id={`sugg-${field}`}>{suggestions.map((s) => <option key={s} value={s} />)}</datalist>}
         </div>
       </div>
