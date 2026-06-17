@@ -18,13 +18,13 @@ export const ResolvePreview: React.FC<{
 
   return (
     <div>
-      <p className="mb-3 text-sm text-[var(--mx-muted)]">解析后生效 {resolved.length} 个 skill</p>
+      <p className="mb-3 text-sm text-[var(--fg-dim)]">解析后生效 {resolved.length} 个 skill</p>
       {grouped.map(([cat, refs]) => (
         <section key={cat} className="mb-4">
-          <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--mx-muted)]">{cat}</h4>
+          <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--fg-mute)]" style={{ fontFamily: 'var(--font-mono)' }}>{cat}</h4>
           <div className="flex flex-wrap gap-1.5">
             {refs.map((ref) => (
-              <span key={ref} className="rounded bg-[var(--mx-surface)] px-2 py-1 text-xs border border-[var(--mx-border)]">
+              <span key={ref} className="rounded-[var(--radius-s)] bg-[var(--panel)] px-2 py-1 text-xs border border-[var(--border)]" style={{ fontFamily: 'var(--font-mono)' }}>
                 {ref.includes('/') ? ref.split('/').slice(1).join('/') : ref}
               </span>
             ))}

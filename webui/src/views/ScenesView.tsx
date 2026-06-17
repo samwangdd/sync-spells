@@ -5,12 +5,20 @@ import { findSelectedProfile } from '@shared/profileSelection';
 import { ProfileCard } from '../components/ProfileCard';
 import { RecipeEditor } from '../components/RecipeEditor';
 import { ResolvePreview } from '../components/ResolvePreview';
+import { ViewHeader } from '../components/ViewHeader';
+import { PlusIcon } from '../components/icons';
 import { saveProfile } from '../api';
 import { createSceneDraft } from './sceneDraft';
 
 export const ScenesView: React.FC<{
-  state: AppState; search: string; onSaved: () => void; onError: (msg: string) => void;
-}> = ({ state, search, onSaved, onError }) => {
+  state: AppState;
+  search: string;
+  onSearch: (value: string) => void;
+  searchRef?: React.Ref<HTMLInputElement>;
+  subtitle?: string;
+  onSaved: () => void;
+  onError: (msg: string) => void;
+}> = ({ state, search, onSearch, searchRef, subtitle, onSaved, onError }) => {
   const [selected, setSelected] = useState<string | null>(null);
   const [draft, setDraft] = useState<ProfileDraft | null>(null);
   const [saving, setSaving] = useState(false);
@@ -71,27 +79,47 @@ export const ScenesView: React.FC<{
   const canSave = !!draft && dirty && !saving && trimmedDraftName.length > 0 && !nameExists;
 
   if (!draft) {
+    const newButton = (
+      <button
+        type="button"
+        onClick={createScene}
+        className="flex h-[38px] items-center gap-1.5 rounded-[var(--radius-s)] bg-[var(--accent)] px-3.5 text-[13px] font-semibold text-[var(--accent-fg)] transition hover:opacity-90"
+      >
+        <PlusIcon size={15} />
+        新增场景
+      </button>
+    );
     return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {filteredProfiles.map((p) => <ProfileCard key={p.name} profile={p} onOpen={() => open(p.name)} />)}
-        <button onClick={createScene}
-          className="flex min-h-32 flex-col items-center justify-center gap-2 rounded-[var(--mx-radius)] border border-dashed border-[var(--mx-border)] bg-[var(--mx-surface)] p-5 text-center transition hover:border-[var(--mx-primary)] hover:text-[var(--mx-primary)]"
-          style={{ boxShadow: 'var(--mx-shadow)' }}>
-          <span className="text-2xl leading-none">+</span>
-          <span className="text-sm font-medium">新增场景</span>
-        </button>
+      <div>
+        <ViewHeader
+          title="场景"
+          count={state.profiles.length}
+          subtitle={subtitle}
+          search={search}
+          onSearch={onSearch}
+          searchRef={searchRef}
+          action={newButton}
+        />
+        <div className="grid grid-cols-1 gap-3 px-[30px] pb-10 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredProfiles.map((p) => <ProfileCard key={p.name} profile={p} onOpen={() => open(p.name)} />)}
+          <button onClick={createScene}
+            className="flex min-h-32 flex-col items-center justify-center gap-2 rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-[var(--panel)] p-5 text-center transition hover:border-[var(--accent)] hover:text-[var(--accent)]">
+            <PlusIcon size={22} />
+            <span className="text-sm font-medium">新增场景</span>
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="px-[30px] py-6">
       <div className="mb-4 flex items-center gap-3">
         <button
           type="button"
           onClick={goBack}
           aria-label="Back"
-          className="cursor-pointer text-[1.05rem] leading-none text-[var(--mx-muted)] hover:text-[var(--mx-primary)]"
+          className="cursor-pointer text-[1.05rem] leading-none text-[var(--fg-dim)] hover:text-[var(--accent)]"
         >
           ←
         </button>
@@ -100,21 +128,21 @@ export const ScenesView: React.FC<{
             value={draft.name}
             onChange={(e) => { setDraft({ ...draft, name: e.target.value }); setDirty(true); }}
             placeholder="场景名称"
-            className="mx-serif w-64 rounded border border-[var(--mx-border)] bg-[var(--mx-bg)] px-3 py-1.5 text-xl font-semibold outline-none focus:border-[var(--mx-primary)]"
+            className="w-64 rounded-[var(--radius-s)] border border-[var(--border)] bg-[var(--code)] px-3 py-1.5 text-xl font-semibold outline-none focus:border-[var(--accent)]"
           />
         ) : (
           <button
             type="button"
             onClick={goBack}
-            className="mx-serif cursor-pointer text-left text-xl font-semibold hover:text-[var(--mx-primary)]"
+            className="cursor-pointer text-left text-xl font-semibold hover:text-[var(--accent)]"
           >
             {draft.name}
           </button>
         )}
-        {dirty && <span className="rounded bg-[var(--mx-warning-soft)] px-2 py-0.5 text-xs text-[var(--mx-warning)]">未保存</span>}
-        {nameExists && <span className="rounded bg-[var(--mx-danger-soft)] px-2 py-0.5 text-xs text-[var(--mx-danger)]">名称已存在</span>}
+        {dirty && <span className="rounded-[var(--radius-s)] bg-[var(--warning-soft)] px-2 py-0.5 text-xs text-[var(--warning)]">未保存</span>}
+        {nameExists && <span className="rounded-[var(--radius-s)] bg-[var(--danger-soft)] px-2 py-0.5 text-xs text-[var(--danger)]">名称已存在</span>}
         <button onClick={save} disabled={!canSave}
-          className="ml-auto rounded-full bg-[var(--mx-primary)] px-4 py-1.5 text-sm text-white disabled:opacity-40">
+          className="ml-auto rounded-[var(--radius-s)] bg-[var(--accent)] px-4 py-1.5 text-sm text-[var(--accent-fg)] disabled:opacity-40">
           {saving ? '保存中…' : '保存'}
         </button>
       </div>
