@@ -15,6 +15,7 @@ import { registerBind } from './commands/bind';
 import { registerMcp } from './commands/mcp';
 import { registerWorkspace } from './commands/workspace';
 import { registerWeb } from './commands/web';
+import { registerSources } from './commands/sources';
 import { readConfig } from './lib/config';
 
 const program = new Command();
@@ -40,5 +41,6 @@ registerBind(program);
 registerMcp(program);
 registerWorkspace(program, readConfig);
 registerWeb(program, readConfig);
+registerSources(program, readConfig);
 
 program.parse(process.argv);
