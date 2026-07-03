@@ -1,56 +1,87 @@
 @import "tailwindcss";
 
+/* ============================================================
+   sync·spells — Terminal skin design tokens
+   Toggle dark mode with <html data-theme="dark">.
+   Source of truth: design_handoff_terminal_skin/tokens.css
+   ============================================================ */
+
 :root {
-  --mx-bg: #f5f4ef;
-  --mx-surface: #ffffff;
-  --mx-surface-hover: #faf9f5;
-  --mx-border: #e8e5dd;
-  --mx-text: #2b2a28;
-  --mx-muted: #8a857c;
-  --mx-primary: #c96442;
-  --mx-primary-soft: #f6ece8;
+  /* Fonts — JetBrains Mono everywhere (loaded via Google Fonts in index.html) */
+  --font-ui: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
-  --mx-danger: #b3261e;
-  --mx-danger-soft: #fdecea;
-  --mx-warning: #9a6b18;
-  --mx-warning-soft: #fdf3e3;
-  --mx-overlay: rgba(35, 33, 30, 0.3);
+  /* Radii — Terminal stays sharp */
+  --radius: 5px;
+  --radius-s: 4px;
 
-  --mx-shadow: 0 1px 2px rgba(35, 33, 30, 0.05), 0 4px 12px rgba(35, 33, 30, 0.04);
-  --mx-radius: 14px;
+  /* ---- Light (default) ---- */
+  --bg: #f2f1ea;            /* app background (warm paper) */
+  --elev: #ffffff;          /* sidebar / drawer surfaces  */
+  --panel: #ffffff;         /* table / card surfaces      */
+  --fg: #13150d;            /* primary text               */
+  --fg-dim: #53574a;        /* secondary text             */
+  --fg-mute: #8a8d7d;       /* tertiary / labels          */
+  --border: #e0ded2;        /* hairlines                  */
+  --border-strong: #cbc8b9; /* stronger dividers, toggles */
+  --code: #edece3;          /* inset / code chips         */
+  --accent: #0a7d4f;        /* phosphor green             */
+  --accent-soft: #d8f0e4;   /* accent wash (active rows)  */
+  --accent-fg: #ffffff;     /* text on accent             */
+  --shadow: 0 1px 0 rgba(20, 20, 10, .04);
 
-  --mx-font-serif: ui-serif, Georgia, "Times New Roman", serif;
+  /* Auxiliary tokens (no Terminal-palette equivalent, kept for app needs) */
+  --scrim: rgba(12, 10, 6, .32);   /* drawer / modal overlay */
+  --danger: #b3261e;
+  --danger-soft: #fdecea;
+  --warning: #9a6b18;
+  --warning-soft: #fdf3e3;
 }
 
+:root[data-theme="dark"],
 [data-theme="dark"] {
-  --mx-bg: #262624;
-  --mx-surface: #30302e;
-  --mx-surface-hover: #383735;
-  --mx-border: #403e3a;
-  --mx-text: #f0eee6;
-  --mx-muted: #a39e94;
-  --mx-primary: #d97757;
-  --mx-primary-soft: #3a2f2a;
+  --bg: #0a0b07;
+  --elev: #101109;
+  --panel: #0e0f08;
+  --fg: #d2dcc4;
+  --fg-dim: #8c9579;
+  --fg-mute: #5b6350;
+  --border: #1d2014;
+  --border-strong: #2c3120;
+  --code: #0c0d07;
+  --accent: #5ce39b;
+  --accent-soft: #0f2419;
+  --accent-fg: #05140d;
+  --shadow: 0 1px 0 rgba(0, 0, 0, .5);
 
-  --mx-danger: #f2998c;
-  --mx-danger-soft: #3a2723;
-  --mx-warning: #e0b766;
-  --mx-warning-soft: #3a3122;
-  --mx-overlay: rgba(0, 0, 0, 0.55);
-
-  --mx-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.25);
+  --scrim: rgba(0, 0, 0, .45);
+  --danger: #f2998c;
+  --danger-soft: #3a2723;
+  --warning: #e0b766;
+  --warning-soft: #3a3122;
 }
+
+* { box-sizing: border-box; }
 
 body {
   margin: 0;
-  background: var(--mx-bg);
-  color: var(--mx-text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-ui);
+  color: var(--fg);
+  background: var(--bg);
+  letter-spacing: -0.011em;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-.mx-serif {
-  font-family: var(--mx-font-serif);
+::selection { background: var(--accent-soft); color: var(--fg); }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: content-box;
 }
+::-webkit-scrollbar-thumb:hover { background: var(--fg-mute); background-clip: content-box; }
 
 button:not(:disabled),
 select:not(:disabled),

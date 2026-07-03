@@ -48,3 +48,20 @@ export interface ProjectBinding {
   path: string;
   profile: string;
 }
+
+export interface SourceSkillEntry {
+  path: string;
+  category: string;
+  global?: boolean;
+}
+
+export interface SourceSpec {
+  name: string;
+  repo: string;
+  cache?: string;
+  skills: SourceSkillEntry[];
+}
+
+export interface SourcesConfig {
+  sources: SourceSpec[];
+}
