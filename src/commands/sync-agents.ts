@@ -19,6 +19,27 @@ const renderAgent = (
   body: string,
 ): string => (format === 'toml' ? toToml(data, body) : toJson(data, body));
 
+const resolveAgentsDir = async (sourceRoot: string): Promise<string> => {
+  const manifest = await readManifest(sourceRoot);
+  const direct = path.join(sourceRoot, manifest.agents);
+  try {
+    await fs.access(direct);
+    return direct;
+  } catch {}
+
+  if (path.basename(sourceRoot) === manifest.library) {
+    const workspaceRoot = path.dirname(sourceRoot);
+    const workspaceManifest = await readManifest(workspaceRoot);
+    const sibling = path.join(workspaceRoot, workspaceManifest.agents);
+    try {
+      await fs.access(sibling);
+      return sibling;
+    } catch {}
+  }
+
+  return direct;
+};
+
 export const runAgentSync = async (): Promise<AgentSyncResult[]> => {
   const config = await readConfig();
   if (!config.source) {
@@ -26,8 +47,7 @@ export const runAgentSync = async (): Promise<AgentSyncResult[]> => {
   }
 
   const root = expandHome(config.source);
-  const manifest = await readManifest(root);
-  const agentsDir = path.join(root, manifest.agents);
+  const agentsDir = await resolveAgentsDir(root);
   const files = await listAgentFiles(agentsDir);
   const results: AgentSyncResult[] = [];
 

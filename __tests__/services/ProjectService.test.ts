@@ -129,4 +129,68 @@ describe('ProjectService', () => {
     expect(target).toBe(path.join(testDir, 'global', 'git-commit'));
     expect(target).not.toContain('active-' + 'skills');
   });
+
+  it('activateProfile copies (not symlinks) into project-local Kiro dir when syncMode is copy', async () => {
+    await fs.mkdir(path.join(testDir, 'global', 'git-commit'), { recursive: true });
+    await fs.writeFile(path.join(testDir, 'global', 'git-commit', 'SKILL.md'), '# x');
+    await fs.mkdir(path.join(testDir, 'profiles'), { recursive: true });
+    await fs.writeFile(
+      path.join(testDir, 'profiles', 'test.json'),
+      JSON.stringify({ name: 'test', skills: ['global/git-commit'] }),
+    );
+
+    const cfg: Config = {
+      source: testDir,
+      tools: {
+        kiro: { enabled: true, configPath: '~/.kiro', mappings: [{ from: 'global', to: 'skills' }], syncMode: 'copy' },
+      },
+      profilesDir: path.join(testDir, 'profiles'),
+    };
+    const svc = new ProjectService(cfg, new ProfileService(cfg));
+    const projectDir = path.join(testDir, 'proj');
+
+    const result = await svc.activateProfile(projectDir, 'test');
+
+    const dest = path.join(projectDir, '.kiro', 'skills', 'git-commit');
+    const st = await fs.lstat(dest);
+    expect(st.isSymbolicLink()).toBe(false);
+    expect(st.isDirectory()).toBe(true);
+
+    const content = await fs.readFile(path.join(dest, 'SKILL.md'), 'utf8');
+    expect(content).toBe('# x');
+
+    const linked = result.skills.find(s => s.name === 'git-commit');
+    expect(linked?.status).toBe('linked');
+    expect(linked?.targetPath).toBe(path.join('.kiro', 'skills', 'git-commit'));
+  });
+
+  it('re-activating a copy-mode profile after source changes updates the copy, not a stale one', async () => {
+    await fs.mkdir(path.join(testDir, 'global', 'git-commit'), { recursive: true });
+    await fs.writeFile(path.join(testDir, 'global', 'git-commit', 'SKILL.md'), '# v1');
+    await fs.mkdir(path.join(testDir, 'profiles'), { recursive: true });
+    await fs.writeFile(
+      path.join(testDir, 'profiles', 'test.json'),
+      JSON.stringify({ name: 'test', skills: ['global/git-commit'] }),
+    );
+
+    const cfg: Config = {
+      source: testDir,
+      tools: {
+        kiro: { enabled: true, configPath: '~/.kiro', mappings: [{ from: 'global', to: 'skills' }], syncMode: 'copy' },
+      },
+      profilesDir: path.join(testDir, 'profiles'),
+    };
+    const svc = new ProjectService(cfg, new ProfileService(cfg));
+    const projectDir = path.join(testDir, 'proj');
+
+    await svc.activateProfile(projectDir, 'test');
+    await fs.writeFile(path.join(testDir, 'global', 'git-commit', 'SKILL.md'), '# v2');
+    await svc.activateProfile(projectDir, 'test');
+
+    const content = await fs.readFile(
+      path.join(projectDir, '.kiro', 'skills', 'git-commit', 'SKILL.md'),
+      'utf8'
+    );
+    expect(content).toBe('# v2');
+  });
 });

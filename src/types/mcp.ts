@@ -4,6 +4,9 @@ export interface McpServerConfig {
   env?: Record<string, string>;
   url?: string;
   headers?: Record<string, string>;
+  disabled?: boolean;
+  autoApprove?: string[];
+  disabledTools?: string[];
 }
 
 export interface McpSourceConfig {
@@ -15,7 +18,7 @@ export interface LoadedMcpConfig {
   sources: string[];
 }
 
-export type McpToolKey = 'claude-code' | 'cursor' | 'codex';
+export type McpToolKey = 'claude-code' | 'cursor' | 'codex' | 'kiro';
 export type McpScope = 'global' | 'project';
 
 export interface McpManifest {

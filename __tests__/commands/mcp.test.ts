@@ -29,6 +29,7 @@ describe('mcp command', () => {
         'claude-code': { enabled: true, configPath: path.join(testDir, 'claude'), mappings: [] },
         cursor: { enabled: true, configPath: path.join(testDir, 'cursor'), mappings: [] },
         codex: { enabled: true, configPath: path.join(testDir, 'codex'), mappings: [] },
+        kiro: { enabled: true, configPath: path.join(testDir, 'kiro'), mappings: [] },
         agents: { enabled: false, configPath: path.join(testDir, 'agents'), mappings: [] }
       },
       projectBindings: [{ path: testDir, profile: 'coding' }]
@@ -49,9 +50,11 @@ describe('mcp command', () => {
     expect(result.changes).toEqual(expect.arrayContaining([
       expect.objectContaining({ tool: 'claude-code', scope: 'global', server: 'context7', action: 'add' }),
       expect.objectContaining({ tool: 'cursor', scope: 'global', server: 'context7', action: 'add' }),
-      expect.objectContaining({ tool: 'codex', scope: 'global', server: 'context7', action: 'add' })
+      expect.objectContaining({ tool: 'codex', scope: 'global', server: 'context7', action: 'add' }),
+      expect.objectContaining({ tool: 'kiro', scope: 'global', server: 'context7', action: 'add' })
     ]));
     await expect(fs.access(path.join(testDir, 'cursor', 'mcp.json'))).rejects.toBeTruthy();
+    await expect(fs.access(path.join(testDir, 'kiro', 'settings', 'mcp.json'))).rejects.toBeTruthy();
   });
 
   it('writes project MCP targets for an explicit preset', async () => {
@@ -64,6 +67,10 @@ describe('mcp command', () => {
     expect(result.preset).toBe('coding');
     expect(result.changes.some((change) => change.targetPath.endsWith('.mcp.json'))).toBe(true);
     expect(JSON.parse(await fs.readFile(path.join(projectDir, '.mcp.json'), 'utf8')).mcpServers.local).toEqual({
+      command: 'node',
+      args: ['server.js']
+    });
+    expect(JSON.parse(await fs.readFile(path.join(projectDir, '.kiro', 'settings', 'mcp.json'), 'utf8')).mcpServers.local).toEqual({
       command: 'node',
       args: ['server.js']
     });

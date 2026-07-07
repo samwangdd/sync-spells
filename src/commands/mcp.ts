@@ -21,7 +21,7 @@ interface McpRunResult {
 }
 
 const enabledMcpTools = (config: Config): McpToolKey[] => {
-  return (['claude-code', 'cursor', 'codex'] as McpToolKey[]).filter((tool) => config.tools[tool]?.enabled);
+  return (['claude-code', 'cursor', 'codex', 'kiro'] as McpToolKey[]).filter((tool) => config.tools[tool]?.enabled);
 };
 
 const manifestPathFor = (options: McpRunOptions): string => options.manifestPath || path.join(configDir(), 'mcp-manifest.json');
@@ -31,6 +31,7 @@ const globalTargetPath = (config: Config, tool: McpToolKey): string => {
 
   if (tool === 'claude-code') return `${configured}.json`;
   if (tool === 'cursor') return path.join(configured, 'mcp.json');
+  if (tool === 'kiro') return path.join(configured, 'settings', 'mcp.json');
 
   return path.join(configured, 'config.toml');
 };
@@ -38,6 +39,7 @@ const globalTargetPath = (config: Config, tool: McpToolKey): string => {
 const projectTargetPath = (projectPath: string, tool: McpToolKey): string => {
   if (tool === 'claude-code') return path.join(projectPath, '.mcp.json');
   if (tool === 'cursor') return path.join(projectPath, '.cursor', 'mcp.json');
+  if (tool === 'kiro') return path.join(projectPath, '.kiro', 'settings', 'mcp.json');
 
   return path.join(projectPath, '.codex', 'config.toml');
 };

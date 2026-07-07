@@ -19,4 +19,17 @@ describe('TOOL_PRESETS', () => {
     const preset = TOOL_PRESETS.find(p => p.key === 'claude-code')!;
     expect(presetToToolConfig(preset).enabled).toBe(true);
   });
+
+  test('kiro preset maps global to skills in copy mode (no symlink support)', () => {
+    const kiro = TOOL_PRESETS.find(p => p.key === 'kiro')!;
+    expect(kiro.mappings).toEqual([{ from: 'global', to: 'skills' }]);
+    expect(kiro.syncMode).toBe('copy');
+  });
+
+  test('presetToToolConfig carries syncMode through', () => {
+    const kiro = TOOL_PRESETS.find(p => p.key === 'kiro')!;
+    expect(presetToToolConfig(kiro).syncMode).toBe('copy');
+    const claude = TOOL_PRESETS.find(p => p.key === 'claude-code')!;
+    expect(presetToToolConfig(claude).syncMode).toBeUndefined();
+  });
 });

@@ -53,6 +53,18 @@ describe('runAgentSync', () => {
     });
   };
 
+  const writeConfigWithLibrarySource = async () => {
+    const { config } = loadModules();
+    const library = path.join(workspace, 'skill-category');
+    await mkdir(library, { recursive: true });
+    await config.writeConfig({
+      source: library,
+      tools: {
+        kiro: { enabled: true, configPath: path.join(home, '.kiro'), mappings: [], agents: { path: path.join(home, '.kiro/agents'), format: 'json' } },
+      },
+    });
+  };
+
   test('symlinks .md for claude-code (passthrough)', async () => {
     await writeConfig();
     const { syncAgents } = loadModules();
@@ -77,7 +89,19 @@ describe('runAgentSync', () => {
     await syncAgents.runAgentSync();
     const parsed = JSON.parse(await readFile(path.join(home, '.kiro/agents', 'jira.json'), 'utf8'));
     expect(parsed.name).toBe('jira');
-    expect(parsed.tools).toEqual(['Skill', 'Read']);
+    expect(parsed.model).toBe('claude-sonnet-5');
+    expect(parsed.tools).toEqual(['read']);
+    expect(parsed.allowedTools).toEqual(['read']);
+    expect(parsed.resources).toContain('skill://~/.kiro/skills/*/SKILL.md');
+    expect(parsed.includeMcpJson).toBe(true);
+  });
+
+  test('finds sibling agents when config source points at skill-category', async () => {
+    await writeConfigWithLibrarySource();
+    const { syncAgents } = loadModules();
+    await syncAgents.runAgentSync();
+    const parsed = JSON.parse(await readFile(path.join(home, '.kiro/agents', 'jira.json'), 'utf8'));
+    expect(parsed.name).toBe('jira');
   });
 
   test('backs up a pre-existing real .toml before overwriting', async () => {

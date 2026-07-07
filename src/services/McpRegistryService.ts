@@ -35,6 +35,21 @@ const validateServer = (name: string, value: unknown): McpServerConfig => {
   if (server.headers !== undefined && !isStringRecord(server.headers)) {
     throw new Error(`Invalid MCP server "${name}": headers must be a string map`);
   }
+  if (server.disabled !== undefined && typeof server.disabled !== 'boolean') {
+    throw new Error(`Invalid MCP server "${name}": disabled must be a boolean`);
+  }
+  if (
+    server.autoApprove !== undefined &&
+    (!Array.isArray(server.autoApprove) || !server.autoApprove.every((tool) => typeof tool === 'string'))
+  ) {
+    throw new Error(`Invalid MCP server "${name}": autoApprove must be a string array`);
+  }
+  if (
+    server.disabledTools !== undefined &&
+    (!Array.isArray(server.disabledTools) || !server.disabledTools.every((tool) => typeof tool === 'string'))
+  ) {
+    throw new Error(`Invalid MCP server "${name}": disabledTools must be a string array`);
+  }
   if (!server.command && !server.url) {
     throw new Error(`Invalid MCP server "${name}": command or url is required`);
   }
@@ -44,7 +59,10 @@ const validateServer = (name: string, value: unknown): McpServerConfig => {
     ...(server.args !== undefined ? { args: server.args } : {}),
     ...(server.env !== undefined ? { env: server.env } : {}),
     ...(server.url !== undefined ? { url: server.url } : {}),
-    ...(server.headers !== undefined ? { headers: server.headers } : {})
+    ...(server.headers !== undefined ? { headers: server.headers } : {}),
+    ...(server.disabled !== undefined ? { disabled: server.disabled } : {}),
+    ...(server.autoApprove !== undefined ? { autoApprove: server.autoApprove } : {}),
+    ...(server.disabledTools !== undefined ? { disabledTools: server.disabledTools } : {})
   };
 };
 

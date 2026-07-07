@@ -28,13 +28,17 @@ const readTextIfExists = async (filePath: string): Promise<string> => {
   }
 };
 
-const stringifyTomlValue = (value: string | string[] | Record<string, string>): string => {
+const stringifyTomlValue = (value: string | string[] | boolean | Record<string, string>): string => {
   if (typeof value === 'string') {
     return JSON.stringify(value);
   }
 
   if (Array.isArray(value)) {
     return `[${value.map((entry) => JSON.stringify(entry)).join(', ')}]`;
+  }
+
+  if (typeof value === 'boolean') {
+    return value ? 'true' : 'false';
   }
 
   const pairs = Object.entries(value).map(([key, entry]) => `${JSON.stringify(key)} = ${JSON.stringify(entry)}`);
@@ -49,6 +53,8 @@ const renderCodexServer = (name: string, server: McpServerConfig): string => {
   if (server.env !== undefined) lines.push(`env = ${stringifyTomlValue(server.env)}`);
   if (server.url !== undefined) lines.push(`url = ${stringifyTomlValue(server.url)}`);
   if (server.headers !== undefined) lines.push(`headers = ${stringifyTomlValue(server.headers)}`);
+  if (server.disabled !== undefined) lines.push(`disabled = ${stringifyTomlValue(server.disabled)}`);
+  if (server.disabledTools !== undefined) lines.push(`disabledTools = ${stringifyTomlValue(server.disabledTools)}`);
 
   return lines.join('\n');
 };

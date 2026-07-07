@@ -74,25 +74,35 @@ describe('toToml', () => {
 });
 
 describe('toJson', () => {
-  test('emits name, description, prompt, model and splits tools into an array', () => {
+  test('emits Kiro-compatible tools, model, resources, and guarded settings', () => {
     const out = toJson(
-      { name: 'jira', description: 'desc', model: 'sonnet', tools: 'Skill, Read, Bash' },
+      { name: 'jira', description: 'desc', model: 'haiku', tools: 'Skill, Read, Grep, Bash, Write' },
       'prompt body\n',
     );
     const parsed = JSON.parse(out);
-    expect(parsed).toEqual({
-      name: 'jira',
-      description: 'desc',
-      model: 'sonnet',
-      prompt: 'prompt body\n',
-      tools: ['Skill', 'Read', 'Bash'],
-    });
+    expect(parsed.name).toBe('jira');
+    expect(parsed.description).toBe('desc');
+    expect(parsed.model).toBe('claude-haiku-4.5');
+    expect(parsed.prompt).toBe('prompt body\n');
+    expect(parsed.tools).toEqual(['read', 'grep', 'shell', 'write']);
+    expect(parsed.allowedTools).toEqual(['read', 'grep']);
+    expect(parsed.resources).toContain('skill://~/.kiro/skills/*/SKILL.md');
+    expect(parsed.resources).toContain('skill://.kiro/skills/*/SKILL.md');
+    expect(parsed.includeMcpJson).toBe(true);
+    expect(parsed.toolsSettings.shell.autoAllowReadonly).toBe(true);
+    expect(parsed.toolsSettings.write.deniedPaths).toContain('~/.ssh/**');
   });
 
-  test('omits tools when frontmatter has none', () => {
+  test('omits tools and tool settings when frontmatter has no mapped tools', () => {
     const parsed = JSON.parse(toJson({ name: 'a', description: 'b' }, 'p\n'));
     expect(parsed.tools).toBeUndefined();
-    expect(parsed.model).toBe('sonnet');
+    expect(parsed.toolsSettings).toEqual({});
+    expect(parsed.model).toBe('claude-sonnet-5');
+  });
+
+  test('preserves explicit Kiro model identifiers', () => {
+    const parsed = JSON.parse(toJson({ name: 'a', description: 'b', model: 'deepseek-3.2' }, 'p\n'));
+    expect(parsed.model).toBe('deepseek-3.2');
   });
 });
 
