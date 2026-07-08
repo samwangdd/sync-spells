@@ -55,4 +55,11 @@ export class McpManifestService {
     manifest.targets[targetKey] = [...entries].sort();
     await this.write(manifest);
   }
+
+  async addOwnedEntries(targetKey: string, entries: string[]): Promise<void> {
+    const manifest = await this.read();
+    const merged = new Set([...(manifest.targets[targetKey] || []), ...entries]);
+    manifest.targets[targetKey] = [...merged].sort();
+    await this.write(manifest);
+  }
 }

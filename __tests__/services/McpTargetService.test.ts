@@ -64,6 +64,30 @@ describe('McpTargetService', () => {
     expect(written.mcpServers.context7).toEqual({ command: 'manual' });
   });
 
+  it('preserves Kiro JSON server options such as disabled and autoApprove', async () => {
+    const targetPath = path.join(testDir, '.kiro', 'settings', 'mcp.json');
+
+    const changes = await new McpTargetService(manifest).writeJsonTarget({
+      tool: 'kiro',
+      scope: 'global',
+      targetPath,
+      servers: { fetch: { command: 'uvx', args: ['mcp-server-fetch'], disabled: false, autoApprove: [] } },
+      dryRun: false,
+      forceAdopt: false
+    });
+
+    expect(changes).toEqual([
+      expect.objectContaining({ action: 'add', server: 'fetch' })
+    ]);
+    const written = JSON.parse(await fs.readFile(targetPath, 'utf8'));
+    expect(written.mcpServers.fetch).toEqual({
+      command: 'uvx',
+      args: ['mcp-server-fetch'],
+      disabled: false,
+      autoApprove: []
+    });
+  });
+
   it('writes Codex TOML MCP tables and preserves unrelated settings', async () => {
     const targetPath = path.join(testDir, 'config.toml');
     await fs.writeFile(targetPath, 'model = "gpt-5"\n\n[mcp_servers.manual]\ncommand = "node"\nargs = ["manual.js"]\n');

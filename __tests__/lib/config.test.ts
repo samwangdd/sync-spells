@@ -280,12 +280,7 @@ describe('config module', () => {
     for (const key of Object.keys(defaultConfig.tools)) {
       const tool = defaultConfig.tools[key];
       expect(tool.enabled).toBe(true);
-      // kiro has empty mappings, all others have [{ from: 'global', to: 'skills' }]
-      if (key === 'kiro') {
-        expect(tool.mappings).toEqual([]);
-      } else {
-        expect(tool.mappings).toEqual([{ from: 'global', to: 'skills' }]);
-      }
+      expect(tool.mappings).toEqual([{ from: 'global', to: 'skills' }]);
     }
     expect(defaultConfig.tools['claude-code'].configPath).toBe('~/.claude');
     expect(defaultConfig.tools['agents'].configPath).toBe('~/.agents');
@@ -332,6 +327,52 @@ describe('config module', () => {
     await writeFile(configPath, JSON.stringify(saved, null, 2), 'utf8');
 
     await expect(readConfig()).resolves.toEqual(defaultConfig);
+  });
+
+  test('readConfig accepts a tool with syncMode copy', async () => {
+    const { readConfig, getConfigPath } = loadConfigModule();
+    const saved = {
+      source: 'disk',
+      tools: {
+        kiro: {
+          enabled: true,
+          configPath: '~/.kiro',
+          mappings: [{ from: 'global', to: 'skills' }],
+          syncMode: 'copy',
+        },
+      },
+    };
+    const configPath = getConfigPath();
+    await mkdir(path.dirname(configPath), { recursive: true });
+    await writeFile(configPath, JSON.stringify(saved, null, 2), 'utf8');
+
+    await expect(readConfig()).resolves.toEqual(saved);
+  });
+
+  test('readConfig rejects a tool with an invalid syncMode', async () => {
+    const { readConfig, defaultConfig, getConfigPath } = loadConfigModule();
+    const saved = {
+      source: 'disk',
+      tools: {
+        kiro: {
+          enabled: true,
+          configPath: '~/.kiro',
+          mappings: [],
+          syncMode: 'hardlink',
+        },
+      },
+    };
+    const configPath = getConfigPath();
+    await mkdir(path.dirname(configPath), { recursive: true });
+    await writeFile(configPath, JSON.stringify(saved, null, 2), 'utf8');
+
+    await expect(readConfig()).resolves.toEqual(defaultConfig);
+  });
+
+  test('defaultConfig gives kiro copy mode and the global skills mapping', () => {
+    const { defaultConfig } = loadConfigModule();
+    expect(defaultConfig.tools.kiro.syncMode).toBe('copy');
+    expect(defaultConfig.tools.kiro.mappings).toEqual([{ from: 'global', to: 'skills' }]);
   });
 
   test('defaultConfig wires agent targets for claude-code, codex, cursor, and kiro', () => {

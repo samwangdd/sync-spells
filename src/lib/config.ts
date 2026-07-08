@@ -9,6 +9,8 @@ export interface ToolMapping {
 
 export type AgentFormat = 'md' | 'toml' | 'json';
 
+export type SyncMode = 'symlink' | 'copy';
+
 export interface AgentTarget {
   path: string;
   format: AgentFormat;
@@ -19,6 +21,8 @@ export interface ToolConfig {
   configPath: string;
   mappings: ToolMapping[];
   agents?: AgentTarget;
+  /** How spells land in the tool dir. Default 'symlink'; 'copy' for tools that cannot follow symlinks (Kiro). */
+  syncMode?: SyncMode;
 }
 
 export interface Config {
@@ -60,7 +64,8 @@ const isToolConfig = (value: unknown): value is ToolConfig => {
     typeof config.configPath === 'string' &&
     Array.isArray(config.mappings) &&
     config.mappings.every(isToolMapping) &&
-    (config.agents === undefined || isAgentTarget(config.agents))
+    (config.agents === undefined || isAgentTarget(config.agents)) &&
+    (config.syncMode === undefined || config.syncMode === 'symlink' || config.syncMode === 'copy')
   );
 };
 
@@ -93,7 +98,7 @@ export const defaultConfig: Config = {
     'agents':      { enabled: true, configPath: '~/.agents', mappings: [{ from: 'global', to: 'skills' }] },
     'codex':       { enabled: true, configPath: '~/.codex',  mappings: [{ from: 'global', to: 'skills' }], agents: { path: '~/.codex/agents', format: 'toml' } },
     'cursor':      { enabled: true, configPath: '~/.cursor', mappings: [{ from: 'global', to: 'skills' }], agents: { path: '~/.cursor/agents', format: 'md' } },
-    'kiro':        { enabled: true, configPath: '~/.kiro',   mappings: [], agents: { path: '~/.kiro/agents', format: 'json' } },
+    'kiro':        { enabled: true, configPath: '~/.kiro',   mappings: [{ from: 'global', to: 'skills' }], syncMode: 'copy', agents: { path: '~/.kiro/agents', format: 'json' } },
   },
 };
 

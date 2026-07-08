@@ -79,18 +79,168 @@ export const toToml = (data: AgentFrontmatter, body: string): string => {
   ].join('\n');
 };
 
+const kiroModel = (model?: string): string => {
+  if (!model || model === 'sonnet') return 'claude-sonnet-5';
+  if (model === 'opus') return 'claude-opus-4.8';
+  if (model === 'haiku') return 'claude-haiku-4.5';
+  return model;
+};
+
+const kiroToolMap: Record<string, string | null> = {
+  Skill: null,
+  Read: 'read',
+  Grep: 'grep',
+  Glob: 'glob',
+  Bash: 'shell',
+  Edit: 'write',
+  MultiEdit: 'write',
+  Write: 'write',
+  TodoWrite: 'todo',
+  Task: 'delegate',
+  AskUserQuestion: null,
+};
+
+const kiroResources = [
+  'skill://~/.kiro/skills/*/SKILL.md',
+  'skill://.kiro/skills/*/SKILL.md',
+  'file://AGENTS.md',
+  'file://CLAUDE.md',
+];
+
+const kiroAllowedTools = new Set(['read', 'grep', 'glob', 'knowledge', 'thinking', 'todo', 'report', 'introspect']);
+
+const kiroDeniedShellCommands = [
+  'rm\\s+-rf\\b.*',
+  '\\s-rf\\s.*',
+  'find\\s+\\.\\s+-delete\\b.*',
+  'shred\\b.*',
+  'truncate\\b.*',
+  'dd\\s+if=.*',
+  'mkfs\\b.*',
+  '>\\s*/dev/.*',
+  'mv\\s+/dev/null\\b.*',
+  'sudo\\b.*',
+  'su\\b.*',
+  'doas\\b.*',
+  'chmod\\s+777\\b.*',
+  'chmod\\s+-R\\s+777\\b.*',
+  'chown\\b.*',
+  'setfacl\\b.*',
+  'systemctl\\s+enable\\b.*',
+  'crontab\\b.*',
+  'visudo\\b.*',
+  'eval\\b.*',
+  'exec\\s*\\(.*',
+  'python\\s+-c\\b.*',
+  'python3\\s+-c\\b.*',
+  'node\\s+-e\\b.*',
+  'perl\\s+-e\\b.*',
+  'ruby\\s+-e\\b.*',
+  'ld_preload\\b.*',
+  'LD_PRELOAD\\b.*',
+  'curl.*\\|\\s*sh\\b.*',
+  'curl.*\\|\\s*bash\\b.*',
+  'wget.*\\|\\s*sh\\b.*',
+  'wget.*\\|\\s*bash\\b.*',
+  'bash\\s+<\\(.*',
+  'sh\\s+<\\(.*',
+  'nc\\b.*',
+  'netcat\\b.*',
+  'ncat\\b.*',
+  '/dev/tcp/.*',
+  'curl\\s+-F\\b.*',
+  'curl\\s+-X\\s+POST\\s+-d\\s+@.*',
+  'scp\\b.*',
+  'rsync\\b.*',
+  'cat\\s+~/(\\.ssh|\\.aws|\\.kube).*',
+  '^env(\\s|$).*',
+  '^printenv(\\s|$).*',
+  'history\\b.*',
+  'grep\\s+-r\\b.*',
+  'tar\\s+-cz\\b.*',
+  'zip\\s+-r\\b.*',
+  'git\\s+reset\\s+--hard\\b.*',
+  'git\\s+clean\\s+-fd\\b.*',
+  'git\\s+push\\s+-f\\b.*',
+  'git\\s+push\\b.*--force.*',
+];
+
+const kiroAllowedShellCommands = [
+  'pwd.*',
+  'ls.*',
+  'find . -maxdepth .*',
+  'rg .*',
+  'grep .*',
+  'sed -n .*',
+  'head .*',
+  'tail .*',
+  'cat [^~].*',
+  'wc .*',
+  'git status.*',
+  'git branch.*',
+  'git diff.*',
+  'git log.*',
+  'git show.*',
+  'git ls-files.*',
+  'npm test.*',
+  'npm run test.*',
+  'npm run lint.*',
+  'npm run typecheck.*',
+  'pnpm test.*',
+  'pnpm lint.*',
+  'pnpm typecheck.*',
+  'yarn test.*',
+  'yarn lint.*',
+  'pytest.*',
+  'ruff check.*',
+  'mypy.*',
+];
+
+const kiroTools = (tools?: string): string[] => {
+  if (!tools) return [];
+
+  const mapped = tools
+    .split(',')
+    .map((tool) => tool.trim())
+    .filter(Boolean)
+    .map((tool) => (Object.prototype.hasOwnProperty.call(kiroToolMap, tool) ? kiroToolMap[tool] : tool.toLowerCase()))
+    .filter((tool): tool is string => Boolean(tool));
+
+  return [...new Set(mapped)];
+};
+
 export const toJson = (data: AgentFrontmatter, body: string): string => {
+  const tools = kiroTools(data.tools);
+  const allowedTools = tools.filter((tool) => kiroAllowedTools.has(tool));
+  const toolsSettings: Record<string, unknown> = {};
+  if (tools.includes('write')) {
+    toolsSettings.write = {
+      allowedPaths: ['./**'],
+      deniedPaths: ['~/.ssh/**', '~/.aws/**', '~/.kube/**', '~/.gnupg/**', '~/.kiro/**', '~/.claude/**', '~/.codex/**'],
+    };
+  }
+  if (tools.includes('shell')) {
+    toolsSettings.shell = {
+      autoAllowReadonly: true,
+      allowedCommands: kiroAllowedShellCommands,
+      deniedCommands: kiroDeniedShellCommands,
+    };
+  }
+
   const obj: Record<string, unknown> = {
     name: data.name,
     description: data.description,
-    model: data.model || 'sonnet',
+    model: kiroModel(data.model),
     prompt: body,
+    resources: kiroResources,
+    includeMcpJson: true,
+    toolsSettings,
   };
-  if (data.tools) {
-    const tools = data.tools.split(',').map((t) => t.trim()).filter(Boolean);
-    if (tools.length > 0) {
-      obj.tools = tools;
-    }
+  if (tools.length > 0) {
+    obj.tools = tools;
+  }
+  if (allowedTools.length > 0) {
+    obj.allowedTools = allowedTools;
   }
   return JSON.stringify(obj, null, 2) + '\n';
 };

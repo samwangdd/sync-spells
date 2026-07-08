@@ -29,6 +29,7 @@ describe('mcp command', () => {
         'claude-code': { enabled: true, configPath: path.join(testDir, 'claude'), mappings: [] },
         cursor: { enabled: true, configPath: path.join(testDir, 'cursor'), mappings: [] },
         codex: { enabled: true, configPath: path.join(testDir, 'codex'), mappings: [] },
+        kiro: { enabled: true, configPath: path.join(testDir, 'kiro'), mappings: [] },
         agents: { enabled: false, configPath: path.join(testDir, 'agents'), mappings: [] }
       },
       projectBindings: [{ path: testDir, profile: 'coding' }]
@@ -49,9 +50,11 @@ describe('mcp command', () => {
     expect(result.changes).toEqual(expect.arrayContaining([
       expect.objectContaining({ tool: 'claude-code', scope: 'global', server: 'context7', action: 'add' }),
       expect.objectContaining({ tool: 'cursor', scope: 'global', server: 'context7', action: 'add' }),
-      expect.objectContaining({ tool: 'codex', scope: 'global', server: 'context7', action: 'add' })
+      expect.objectContaining({ tool: 'codex', scope: 'global', server: 'context7', action: 'add' }),
+      expect.objectContaining({ tool: 'kiro', scope: 'global', server: 'context7', action: 'add' })
     ]));
     await expect(fs.access(path.join(testDir, 'cursor', 'mcp.json'))).rejects.toBeTruthy();
+    await expect(fs.access(path.join(testDir, 'kiro', 'settings', 'mcp.json'))).rejects.toBeTruthy();
   });
 
   it('writes project MCP targets for an explicit preset', async () => {
@@ -67,10 +70,44 @@ describe('mcp command', () => {
       command: 'node',
       args: ['server.js']
     });
+    expect(JSON.parse(await fs.readFile(path.join(projectDir, '.kiro', 'settings', 'mcp.json'), 'utf8')).mcpServers.local).toEqual({
+      command: 'node',
+      args: ['server.js']
+    });
     expect(await fs.readFile(path.join(projectDir, '.codex', 'config.toml'), 'utf8')).toContain('[mcp_servers.local]');
 
     const state = JSON.parse(await fs.readFile(path.join(projectDir, '.sync-spells.json'), 'utf8'));
     expect(state.activeMcpPreset).toBe('coding');
+  });
+
+  it('keeps earlier project MCP ownership when another preset is added later', async () => {
+    await fs.writeFile(
+      path.join(testDir, 'source', 'mcp-registry', 'presets', 'browser.json'),
+      JSON.stringify({ mcpServers: { chrome: { command: 'npx', args: ['chrome-devtools-mcp@latest'] } } })
+    );
+
+    await runMcpUse(config, projectDir, 'coding', {
+      dryRun: false,
+      forceAdopt: false,
+      manifestPath: path.join(testDir, 'manifest.json')
+    });
+    await runMcpUse(config, projectDir, 'browser', {
+      dryRun: false,
+      forceAdopt: false,
+      manifestPath: path.join(testDir, 'manifest.json')
+    });
+
+    const result = await runMcpUse(config, projectDir, 'coding', {
+      dryRun: true,
+      forceAdopt: false,
+      manifestPath: path.join(testDir, 'manifest.json')
+    });
+
+    expect(result.changes).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ action: 'conflict', server: 'local' })
+    ]));
+    const manifest = JSON.parse(await fs.readFile(path.join(testDir, 'manifest.json'), 'utf8'));
+    expect(manifest.targets['kiro:project']).toEqual(['chrome', 'context7', 'local']);
   });
 
   it('reports status with inferred preset and registry availability', async () => {

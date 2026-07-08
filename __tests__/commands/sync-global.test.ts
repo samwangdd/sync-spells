@@ -4,6 +4,7 @@ import { lstat, mkdir, readFile, readlink, symlink, writeFile } from 'fs/promise
 import os from 'os';
 import path from 'path';
 import { isOwnedLink, mergeGlobalSkills } from '../../src/commands/sync-global';
+import { MANIFEST_NAME } from '../../src/lib/copy';
 
 describe('isOwnedLink', () => {
   let root: string;
@@ -155,6 +156,132 @@ describe('mergeGlobalSkills', () => {
   });
 });
 
+describe('mergeGlobalSkills (copy mode)', () => {
+  let home: string;
+  let sourceRoot: string;
+  let targetDir: string;
+
+  const desiredFor = (names: string[]) =>
+    names.map((n) => ({ name: n, sourcePath: path.join(sourceRoot, 'foundation', n) }));
+
+  const cfg = () => ({ source: sourceRoot, tools: {} });
+
+  const merge = (names: string[]) =>
+    mergeGlobalSkills(cfg(), 'kiro', targetDir, desiredFor(names), 'copy');
+
+  beforeEach(async () => {
+    home = mkdtempSync(path.join(os.tmpdir(), 'sync-spells-copy-merge-'));
+    sourceRoot = path.join(home, 'skill-category');
+    targetDir = path.join(home, 'kiro', 'skills');
+    for (const n of ['picky', 'evolution']) {
+      const dir = path.join(sourceRoot, 'foundation', n);
+      await mkdir(dir, { recursive: true });
+      await writeFile(path.join(dir, 'SKILL.md'), `# ${n}`, 'utf8');
+    }
+  });
+
+  afterEach(() => {
+    rmSync(home, { recursive: true, force: true });
+  });
+
+  test('copies desired skills as real directories and records a manifest', async () => {
+    const results = await merge(['picky', 'evolution']);
+
+    expect(results.filter((r) => r.action === 'linked').map((r) => r.skill).sort()).toEqual(['evolution', 'picky']);
+    expect((await lstat(path.join(targetDir, 'picky'))).isSymbolicLink()).toBe(false);
+    expect(await readFile(path.join(targetDir, 'picky', 'SKILL.md'), 'utf8')).toBe('# picky');
+
+    const manifest = JSON.parse(await readFile(path.join(targetDir, MANIFEST_NAME), 'utf8'));
+    expect(Object.keys(manifest.entries).sort()).toEqual(['evolution', 'picky']);
+  });
+
+  test('is idempotent — unchanged source reports skipped', async () => {
+    await merge(['picky']);
+    const results = await merge(['picky']);
+    expect(results).toEqual([{ tool: 'kiro', skill: 'picky', action: 'skipped' }]);
+  });
+
+  test('re-copies when the source content changes (updated)', async () => {
+    await merge(['picky']);
+    await writeFile(path.join(sourceRoot, 'foundation', 'picky', 'SKILL.md'), '# picky v2', 'utf8');
+    const results = await merge(['picky']);
+    expect(results).toContainEqual({ tool: 'kiro', skill: 'picky', action: 'updated' });
+    expect(await readFile(path.join(targetDir, 'picky', 'SKILL.md'), 'utf8')).toBe('# picky v2');
+  });
+
+  test('prunes owned copies no longer in the desired set', async () => {
+    await merge(['picky', 'evolution']);
+    const results = await merge(['picky']);
+    expect(results).toContainEqual({ tool: 'kiro', skill: 'evolution', action: 'pruned' });
+    await expect(lstat(path.join(targetDir, 'evolution'))).rejects.toThrow();
+    const manifest = JSON.parse(await readFile(path.join(targetDir, MANIFEST_NAME), 'utf8'));
+    expect(Object.keys(manifest.entries)).toEqual(['picky']);
+  });
+
+  test('never treats the manifest file itself as a skill or prunes it', async () => {
+    await merge(['picky']);
+    const results = await merge(['picky']);
+    expect(results.find((r) => r.skill === MANIFEST_NAME)).toBeUndefined();
+    await expect(lstat(path.join(targetDir, MANIFEST_NAME))).resolves.toBeDefined();
+  });
+
+  test('reports error and leaves a foreign real entry untouched', async () => {
+    await mkdir(path.join(targetDir, 'picky'), { recursive: true });
+    await writeFile(path.join(targetDir, 'picky', 'SKILL.md'), 'mine', 'utf8');
+    const results = await merge(['picky']);
+    expect(results).toContainEqual(expect.objectContaining({ skill: 'picky', action: 'error' }));
+    expect(await readFile(path.join(targetDir, 'picky', 'SKILL.md'), 'utf8')).toBe('mine');
+  });
+
+  test('preserves foreign files during prune', async () => {
+    await merge(['picky']);
+    await writeFile(path.join(targetDir, 'user-note.md'), 'mine', 'utf8');
+    await merge(['picky']);
+    expect(await readFile(path.join(targetDir, 'user-note.md'), 'utf8')).toBe('mine');
+  });
+
+  test('migrates an owned symlink left by symlink mode into a real copy (updated)', async () => {
+    await mkdir(targetDir, { recursive: true });
+    await symlink(path.join(sourceRoot, 'foundation', 'picky'), path.join(targetDir, 'picky'));
+    const results = await merge(['picky']);
+    expect(results).toContainEqual({ tool: 'kiro', skill: 'picky', action: 'updated' });
+    expect((await lstat(path.join(targetDir, 'picky'))).isSymbolicLink()).toBe(false);
+    expect(await readFile(path.join(targetDir, 'picky', 'SKILL.md'), 'utf8')).toBe('# picky');
+  });
+
+  test('prunes stale owned symlinks not in the desired set', async () => {
+    await mkdir(targetDir, { recursive: true });
+    await symlink(path.join(sourceRoot, 'foundation', 'evolution'), path.join(targetDir, 'evolution'));
+    const results = await merge(['picky']);
+    expect(results).toContainEqual({ tool: 'kiro', skill: 'evolution', action: 'pruned' });
+    await expect(lstat(path.join(targetDir, 'evolution'))).rejects.toThrow();
+  });
+
+  test('reports error and does not touch a foreign symlink occupying a desired name', async () => {
+    await mkdir(targetDir, { recursive: true });
+    await mkdir(path.join(home, 'outside-target'), { recursive: true });
+    await symlink(path.join(home, 'outside-target'), path.join(targetDir, 'picky'));
+    const results = await merge(['picky']);
+    expect(results).toContainEqual(expect.objectContaining({ skill: 'picky', action: 'error' }));
+    expect(await readlink(path.join(targetDir, 'picky'))).toBe(path.join(home, 'outside-target'));
+  });
+
+  test('copies dereference symlinks inside a skill (no links reach the target)', async () => {
+    const shared = path.join(sourceRoot, 'shared.md');
+    await writeFile(shared, 'shared', 'utf8');
+    await symlink(shared, path.join(sourceRoot, 'foundation', 'picky', 'shared.md'));
+    await merge(['picky']);
+    const st = await lstat(path.join(targetDir, 'picky', 'shared.md'));
+    expect(st.isSymbolicLink()).toBe(false);
+    expect(await readFile(path.join(targetDir, 'picky', 'shared.md'), 'utf8')).toBe('shared');
+  });
+
+  test('reports error when a desired skill source path is missing', async () => {
+    const results = await merge(['ghost']);
+    expect(results).toContainEqual(expect.objectContaining({ skill: 'ghost', action: 'error' }));
+  });
+});
+
 const loadGlobalModule = (homeDir: string) => {
   jest.resetModules();
   const actualOs = jest.requireActual<typeof import('os')>('os');
@@ -208,6 +335,18 @@ describe('runGlobalSync', () => {
     const results = await runGlobalSync();
     expect((await lstat(path.join(claudeSkills, 'picky'))).isSymbolicLink()).toBe(true);
     expect((await lstat(path.join(claudeSkills, 'evolution'))).isSymbolicLink()).toBe(true);
+    expect(results.filter((r) => r.action === 'linked').length).toBe(2);
+  });
+
+  test('honors syncMode copy — kiro gets real directories, not symlinks', async () => {
+    const kiroSkills = path.join(home, '.kiro', 'skills');
+    writeCfg({
+      kiro: { enabled: true, configPath: path.join(home, '.kiro'), mappings: [{ from: 'global', to: 'skills' }], syncMode: 'copy' },
+    });
+    const { runGlobalSync } = loadGlobalModule(home);
+    const results = await runGlobalSync();
+    expect((await lstat(path.join(kiroSkills, 'picky'))).isSymbolicLink()).toBe(false);
+    expect((await lstat(path.join(kiroSkills, 'evolution'))).isSymbolicLink()).toBe(false);
     expect(results.filter((r) => r.action === 'linked').length).toBe(2);
   });
 
