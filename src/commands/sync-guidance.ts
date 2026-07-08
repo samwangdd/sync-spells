@@ -51,7 +51,26 @@ const workspaceRootFor = (config: Config): string => {
 };
 
 export const getCanonicalGuidancePath = (config: Config): string =>
+  path.join(workspaceRootFor(config), 'global-guidance', 'AGENTS.md');
+
+export const getLegacyGuidancePath = (config: Config): string =>
   path.join(workspaceRootFor(config), 'AGENTS.md');
+
+const resolveCanonicalGuidancePath = async (config: Config): Promise<string | null> => {
+  const preferred = getCanonicalGuidancePath(config);
+  try {
+    await fs.access(preferred);
+    return preferred;
+  } catch {
+    const legacy = getLegacyGuidancePath(config);
+    try {
+      await fs.access(legacy);
+      return legacy;
+    } catch {
+      return null;
+    }
+  }
+};
 
 export const getGuidanceTargets = (config: Config): GuidanceTarget[] => {
   const targets: GuidanceTarget[] = [];
@@ -172,15 +191,14 @@ export const runGuidanceSync = async (config?: Config): Promise<GuidanceSyncResu
     throw new Error('No source configured. Run `spells setup` first.');
   }
 
-  const source = getCanonicalGuidancePath(resolvedConfig);
+  const preferredSource = getCanonicalGuidancePath(resolvedConfig);
+  const source = await resolveCanonicalGuidancePath(resolvedConfig);
   const targets = getGuidanceTargets(resolvedConfig);
 
-  try {
-    await fs.access(source);
-  } catch {
+  if (!source) {
     return targets.map((target) => ({
       tool: target.tool,
-      source,
+      source: preferredSource,
       target: target.targetPath,
       action: 'error',
       error: 'canonical AGENTS.md not found',
@@ -224,7 +242,7 @@ export const runGuidanceStatus = async (config?: Config): Promise<GuidanceStatus
     throw new Error('No source configured. Run `spells setup` first.');
   }
 
-  const source = getCanonicalGuidancePath(resolvedConfig);
+  const source = await resolveCanonicalGuidancePath(resolvedConfig) ?? getCanonicalGuidancePath(resolvedConfig);
   const entries: GuidanceStatusEntry[] = [];
 
   for (const target of getGuidanceTargets(resolvedConfig)) {
