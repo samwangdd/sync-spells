@@ -5,6 +5,7 @@ import { readConfig, expandHome } from '../lib/config';
 import { checkSymlinkState, createSymlink, removeSymlink } from '../lib/symlink';
 import { backupPath } from '../lib/backup';
 import { runAgentSync } from './sync-agents';
+import { runGuidanceSync } from './sync-guidance';
 import { runGlobalSync } from './sync-global';
 
 interface SyncResult {
@@ -109,6 +110,25 @@ export const registerSync = (program: Command): void => {
         );
       } catch (e) {
         console.log(`Global skills: skipped (${e instanceof Error ? e.message : String(e)})`);
+      }
+
+      try {
+        const guidanceResults = await runGuidanceSync();
+        for (const r of guidanceResults) {
+          const icon = r.action === 'error' ? '✗' : r.action === 'skipped' ? '=' : '+';
+          const suffix = r.error ? ` (${r.error})` : '';
+          console.log(`  ${icon} [${r.tool}] global guidance → ${r.target}: ${r.action}${suffix}`);
+        }
+        const guidanceChanged = guidanceResults.filter(
+          (r) => r.action !== 'skipped' && r.action !== 'error',
+        ).length;
+        const guidanceUnchanged = guidanceResults.filter((r) => r.action === 'skipped').length;
+        const guidanceErrors = guidanceResults.filter((r) => r.action === 'error').length;
+        console.log(
+          `Global guidance: ${guidanceChanged} updated, ${guidanceUnchanged} unchanged${guidanceErrors ? `, ${guidanceErrors} error(s)` : ''}.`,
+        );
+      } catch (e) {
+        console.log(`Global guidance: skipped (${e instanceof Error ? e.message : String(e)})`);
       }
 
       try {

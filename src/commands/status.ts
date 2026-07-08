@@ -5,6 +5,7 @@ import { readConfig, expandHome } from '../lib/config';
 import { checkSymlinkState, SymlinkState } from '../lib/symlink';
 import { ProfileService } from '../services/ProfileService';
 import { ProjectService } from '../services/ProjectService';
+import { runGuidanceStatus } from './sync-guidance';
 
 interface StatusEntry {
   tool: string;
@@ -137,6 +138,12 @@ export const registerStatus = (program: Command): void => {
         for (const entry of entries) {
           console.log(`  [${entry.tool}] ${entry.from} → ${entry.to}: ${entry.state}`);
         }
+
+        const guidanceEntries = await runGuidanceStatus();
+        for (const entry of guidanceEntries) {
+          console.log(`  [${entry.tool}] global guidance → ${entry.target}: ${entry.state}`);
+        }
+
         if (entries.length === 0) {
           console.log('No enabled tools. Run `spells setup` to configure.');
         }
