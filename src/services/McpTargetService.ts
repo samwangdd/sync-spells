@@ -128,7 +128,7 @@ export class McpTargetService {
       root.mcpServers = nextServers;
       await fs.mkdir(path.dirname(options.targetPath), { recursive: true });
       await fs.writeFile(options.targetPath, `${JSON.stringify(root, null, 2)}\n`, 'utf8');
-      await this.manifest.setOwnedEntries(key, Object.keys(options.servers));
+      await this.manifest.addOwnedEntries(key, Object.keys(options.servers));
     }
 
     return changes;
@@ -169,7 +169,7 @@ export class McpTargetService {
     if (!options.dryRun && !changes.some((change) => change.action === 'conflict')) {
       await fs.mkdir(path.dirname(options.targetPath), { recursive: true });
       await fs.writeFile(options.targetPath, content.trimStart(), 'utf8');
-      await this.manifest.setOwnedEntries(key, Object.keys(options.servers));
+      await this.manifest.addOwnedEntries(key, Object.keys(options.servers));
     }
 
     return changes;

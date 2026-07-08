@@ -80,6 +80,36 @@ describe('mcp command', () => {
     expect(state.activeMcpPreset).toBe('coding');
   });
 
+  it('keeps earlier project MCP ownership when another preset is added later', async () => {
+    await fs.writeFile(
+      path.join(testDir, 'source', 'mcp-registry', 'presets', 'browser.json'),
+      JSON.stringify({ mcpServers: { chrome: { command: 'npx', args: ['chrome-devtools-mcp@latest'] } } })
+    );
+
+    await runMcpUse(config, projectDir, 'coding', {
+      dryRun: false,
+      forceAdopt: false,
+      manifestPath: path.join(testDir, 'manifest.json')
+    });
+    await runMcpUse(config, projectDir, 'browser', {
+      dryRun: false,
+      forceAdopt: false,
+      manifestPath: path.join(testDir, 'manifest.json')
+    });
+
+    const result = await runMcpUse(config, projectDir, 'coding', {
+      dryRun: true,
+      forceAdopt: false,
+      manifestPath: path.join(testDir, 'manifest.json')
+    });
+
+    expect(result.changes).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ action: 'conflict', server: 'local' })
+    ]));
+    const manifest = JSON.parse(await fs.readFile(path.join(testDir, 'manifest.json'), 'utf8'));
+    expect(manifest.targets['kiro:project']).toEqual(['chrome', 'context7', 'local']);
+  });
+
   it('reports status with inferred preset and registry availability', async () => {
     const status = await runMcpStatus(config, projectDir);
 
