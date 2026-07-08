@@ -46,7 +46,8 @@ describe('global guidance sync', () => {
     workspace = path.join(home, 'oh-my-sync-spells');
     sourceRoot = path.join(workspace, 'skill-category');
     await mkdir(sourceRoot, { recursive: true });
-    await writeFile(path.join(workspace, 'AGENTS.md'), '# Global AGENTS\n', 'utf8');
+    await mkdir(path.join(workspace, 'global-guidance'), { recursive: true });
+    await writeFile(path.join(workspace, 'global-guidance', 'AGENTS.md'), '# Global AGENTS\n', 'utf8');
   });
 
   afterEach(() => {
@@ -56,7 +57,7 @@ describe('global guidance sync', () => {
 
   test('links Codex and Claude to canonical AGENTS and writes a Kiro wrapper', async () => {
     const { runGuidanceSync, runGuidanceStatus } = loadGuidanceModule(home);
-    const canonical = path.join(workspace, 'AGENTS.md');
+    const canonical = path.join(workspace, 'global-guidance', 'AGENTS.md');
 
     const results = await runGuidanceSync(makeConfig());
 
@@ -103,7 +104,9 @@ describe('global guidance sync', () => {
       expect.objectContaining({ tool: 'claude-code', action: 'linked' }),
       expect.objectContaining({ tool: 'kiro', action: 'backed-up' }),
     ]);
-    expect(await readlink(path.join(home, '.codex', 'AGENTS.md'))).toBe(path.join(workspace, 'AGENTS.md'));
+    expect(await readlink(path.join(home, '.codex', 'AGENTS.md'))).toBe(
+      path.join(workspace, 'global-guidance', 'AGENTS.md'),
+    );
 
     const backupRuns = await readdir(path.join(home, '.sync-spells', 'backups'));
     expect(backupRuns.length).toBeGreaterThan(0);
@@ -111,12 +114,27 @@ describe('global guidance sync', () => {
 
   test('reports an error for each enabled target when canonical AGENTS is missing', async () => {
     const { runGuidanceSync } = loadGuidanceModule(home);
-    await rmSync(path.join(workspace, 'AGENTS.md'), { force: true });
+    await rmSync(path.join(workspace, 'global-guidance', 'AGENTS.md'), { force: true });
 
     const results = await runGuidanceSync(makeConfig());
 
     expect(results).toHaveLength(3);
     expect(results.every((r) => r.action === 'error')).toBe(true);
     expect(results.every((r) => r.error === 'canonical AGENTS.md not found')).toBe(true);
+  });
+
+  test('falls back to legacy root AGENTS during migration', async () => {
+    const { runGuidanceSync } = loadGuidanceModule(home);
+    await rmSync(path.join(workspace, 'global-guidance', 'AGENTS.md'), { force: true });
+    await writeFile(path.join(workspace, 'AGENTS.md'), '# Legacy Global AGENTS\n', 'utf8');
+
+    const results = await runGuidanceSync(makeConfig());
+
+    expect(results.map((r) => [r.tool, r.action])).toEqual([
+      ['codex', 'linked'],
+      ['claude-code', 'linked'],
+      ['kiro', 'written'],
+    ]);
+    expect(await readlink(path.join(home, '.codex', 'AGENTS.md'))).toBe(path.join(workspace, 'AGENTS.md'));
   });
 });
