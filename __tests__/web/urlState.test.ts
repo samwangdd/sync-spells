@@ -10,13 +10,15 @@ import {
 const categories = (names: string[]): CategoryView[] => names.map((name) => ({ name, skillRefs: [] }));
 
 describe('urlState', () => {
-  test('uses English values for tab and category query state', () => {
-    expect(buildCatalogUrlState('catalog', 'PM').toString()).toBe('view=catalog&category=pm');
+  test('catalog is the default tab, so only scenes is marked in the query', () => {
+    expect(buildCatalogUrlState('catalog', 'PM').toString()).toBe('category=pm');
+    expect(buildCatalogUrlState('scenes', 'all').toString()).toBe('view=scenes');
     expect(slugCategory('Agent Ops')).toBe('agent-ops');
   });
 
   test('parses selected tab and category from URL query', () => {
-    expect(parseCatalogUrlState('?view=catalog&category=pm')).toEqual({ tab: 'catalog', categorySlug: 'pm' });
+    expect(parseCatalogUrlState('?category=pm')).toEqual({ tab: 'catalog', categorySlug: 'pm' });
+    expect(parseCatalogUrlState('?view=scenes')).toEqual({ tab: 'scenes', categorySlug: null });
   });
 
   test('resolves category slugs back to existing category names', () => {
@@ -24,8 +26,8 @@ describe('urlState', () => {
     expect(resolveCategoryFromQuery('agent-ops', categories(['Coding', 'PM', 'Agent Ops']))).toBe('Agent Ops');
   });
 
-  test('falls back to defaults for invalid query values', () => {
-    expect(parseCatalogUrlState('?view=unknown&category=missing')).toEqual({ tab: 'scenes', categorySlug: 'missing' });
+  test('falls back to the default catalog tab for invalid query values', () => {
+    expect(parseCatalogUrlState('?view=unknown&category=missing')).toEqual({ tab: 'catalog', categorySlug: 'missing' });
     expect(resolveCategoryFromQuery('missing', categories(['PM']))).toBe('all');
   });
 });

@@ -16,8 +16,8 @@ export const Sidebar: React.FC<{
   onToggleTheme: () => void;
 }> = ({ tab, onTab, profileCount, skillCount, theme, onToggleTheme }) => {
   const items: NavItem[] = [
-    { tab: 'scenes', label: '场景', icon: ScenesIcon, count: profileCount },
     { tab: 'catalog', label: '分类', icon: SkillsIcon, count: skillCount },
+    { tab: 'scenes', label: '场景', icon: ScenesIcon, count: profileCount },
   ];
 
   return (

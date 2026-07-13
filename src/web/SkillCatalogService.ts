@@ -31,10 +31,27 @@ export const buildProfileView = (
   };
 };
 
+/**
+ * A single unreadable SKILL.md must never stall the whole catalog. iCloud can evict file
+ * content locally (`dataless`): metadata stays (so `stat` is cheap and non-blocking), but
+ * reading the content blocks a libuv threadpool thread on an on-demand download that may
+ * never arrive. Because `Promise.all` fans out one read per skill and the default threadpool
+ * is only 4 threads, a couple of stuck reads exhaust the pool and wedge every later request —
+ * a read timeout does NOT help, since aborting can't interrupt a syscall already in the kernel.
+ * So we stat-first and skip files that aren't materialized locally, degrading them to
+ * name-only, exactly like a missing frontmatter — never dispatching a read that could block.
+ */
+export interface SkillCatalogOptions {
+  /** Injectable stat (tests simulate a dataless file: size>0, blocks=0). */
+  stat?: (filePath: string) => Promise<{ size: number; blocks: number }>;
+  /** Injectable SKILL.md reader (tests assert a dataless file is never read). */
+  readSkillMd?: (filePath: string) => Promise<string>;
+}
+
 export class SkillCatalogService {
   private profileSvc: ProfileService;
 
-  constructor(private config: Config) {
+  constructor(private config: Config, private opts: SkillCatalogOptions = {}) {
     this.profileSvc = new ProfileService(config);
   }
 
@@ -175,11 +192,17 @@ export class SkillCatalogService {
   }
 
   private async readFrontmatter(ref: string) {
+    const filePath = path.join(this.config.source, ref, 'SKILL.md');
     try {
-      const content = await fs.readFile(path.join(this.config.source, ref, 'SKILL.md'), 'utf8');
+      const stat = this.opts.stat ? await this.opts.stat(filePath) : await fs.stat(filePath);
+      // Not materialized locally (iCloud-dataless): reading would block a threadpool thread. Skip.
+      if (stat.size > 0 && stat.blocks === 0) return {};
+      const content = this.opts.readSkillMd
+        ? await this.opts.readSkillMd(filePath)
+        : await fs.readFile(filePath, 'utf8');
       return parseFrontmatter(content);
     } catch {
-      return {}; // graceful: card shows name only
+      return {}; // graceful: card shows name only (missing, unreadable, or dataless file)
     }
   }
 }

@@ -29,6 +29,29 @@ describe('SkillCatalogService', () => {
   });
   afterEach(async () => { await fs.rm(dir, { recursive: true, force: true }); });
 
+  it('skips reading an iCloud-dataless SKILL.md (size>0, blocks=0) so no blocking read is dispatched', async () => {
+    // A dataless file keeps metadata locally (stat is cheap) but reading its content blocks a
+    // libuv threadpool thread on an on-demand download that may never arrive. The catalog must
+    // detect this via stat and degrade WITHOUT ever dispatching the content read.
+    const readAttempts: string[] = [];
+    const isGitCommit = (p: string) => p.includes(`${path.sep}git-commit${path.sep}`);
+    const stat = async (p: string) =>
+      isGitCommit(p) ? { size: 4996, blocks: 0 } : { size: 100, blocks: 8 };
+    const readSkillMd = async (p: string) => { readAttempts.push(p); return fs.readFile(p, 'utf8'); };
+    const svc = new SkillCatalogService(cfg, { stat, readSkillMd });
+
+    const state = await svc.getState();
+
+    // the dataless file's content read was never attempted
+    expect(readAttempts.some(isGitCommit)).toBe(false);
+    // it still appears, degraded to name-only
+    const gitCommit = state.skills.find((s) => s.ref === 'coding/git-commit');
+    expect(gitCommit).toBeDefined();
+    expect(gitCommit?.description).toBeUndefined();
+    // a materialized file is read normally
+    expect(state.skills.find((s) => s.ref === 'coding/scss')?.version).toBe('2.0.0');
+  });
+
   it('builds skill cards with frontmatter fields', async () => {
     const state = await new SkillCatalogService(cfg).getState();
     const scss = state.skills.find((s) => s.ref === 'coding/scss');

@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { SkillCard as SkillCardData } from '@shared/contract';
+import { copyText } from '../copyText';
 import { isSkillActive } from '../skillStatus';
+import { CheckIcon, CopyIcon } from './icons';
 import { shouldCloseSkillCardMenu } from './skillCardMenu';
 
 /** Shared grid template for the skills table — keeps the header row and data rows aligned. */
@@ -16,6 +18,7 @@ export const SkillRow: React.FC<{
   onToggleSelected: () => void;
 }> = ({ skill, onOpen, onRemove, onMoveTo, isRemoving, isSelected, onToggleSelected }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const menuRef = useRef<HTMLDetailsElement>(null);
   const active = isSkillActive(skill);
 
@@ -27,6 +30,13 @@ export const SkillRow: React.FC<{
     document.addEventListener('pointerdown', closeOnOutsideClick);
     return () => document.removeEventListener('pointerdown', closeOnOutsideClick);
   }, [isMenuOpen]);
+
+  const copySkillName = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    await copyText(skill.name, navigator.clipboard);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  };
 
   return (
     <div
@@ -54,7 +64,20 @@ export const SkillRow: React.FC<{
 
       {/* name + description */}
       <div className="min-w-0">
-        <div className="truncate font-medium text-[var(--fg)]">{skill.name}</div>
+        <div className="flex items-center gap-1.5">
+          <div className="min-w-0 truncate font-medium text-[var(--fg)]">{skill.name}</div>
+          <button
+            type="button"
+            onClick={copySkillName}
+            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-[var(--radius-s)] border border-[var(--border)] transition hover:border-[var(--border-strong)] hover:text-[var(--fg)] ${
+              copied ? 'text-emerald-500' : 'text-[var(--fg-mute)]'
+            }`}
+            title={copied ? '已复制' : `复制 ${skill.name}`}
+            aria-label={copied ? '已复制' : `复制 ${skill.name}`}
+          >
+            {copied ? <CheckIcon size={12} /> : <CopyIcon size={12} />}
+          </button>
+        </div>
         {skill.description && <div className="truncate text-[11px] text-[var(--fg-mute)]">{skill.description}</div>}
       </div>
 

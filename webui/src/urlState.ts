@@ -16,7 +16,7 @@ export const parseCatalogUrlState = (search: string): ParsedUrlState => {
   const category = params.get('category');
 
   return {
-    tab: view === 'catalog' ? 'catalog' : 'scenes',
+    tab: view === 'scenes' ? 'scenes' : 'catalog',
     categorySlug: category?.trim().toLowerCase() || null,
   };
 };
@@ -29,7 +29,7 @@ export const resolveCategoryFromQuery = (categorySlug: string | null, categories
 
 export const buildCatalogUrlState = (tab: QueryTab, category: string): URLSearchParams => {
   const params = new URLSearchParams();
-  if (tab === 'catalog') params.set('view', 'catalog');
+  if (tab === 'scenes') params.set('view', 'scenes');
   if (tab === 'catalog' && category !== 'all') params.set('category', slugCategory(category));
   return params;
 };
