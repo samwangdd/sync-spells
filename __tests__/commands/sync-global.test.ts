@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { mkdtempSync, rmSync } from 'fs';
-import { lstat, mkdir, readFile, readlink, symlink, writeFile } from 'fs/promises';
+import { chmod, lstat, mkdir, readdir, readFile, readlink, symlink, writeFile } from 'fs/promises';
 import os from 'os';
 import path from 'path';
-import { isOwnedLink, mergeGlobalSkills } from '../../src/commands/sync-global';
+import { isBrokenLink, isOwnedLink, mergeGlobalSkills } from '../../src/commands/sync-global';
 import { MANIFEST_NAME } from '../../src/lib/copy';
 
 describe('isOwnedLink', () => {
@@ -42,6 +42,71 @@ describe('isOwnedLink', () => {
 
   test('false for a missing path', async () => {
     await expect(isOwnedLink(path.join(root, 'nope'), path.join(root, 'skill-category'))).resolves.toBe(false);
+  });
+});
+
+describe('isBrokenLink', () => {
+  let root: string;
+
+  beforeEach(() => {
+    root = mkdtempSync(path.join(os.tmpdir(), 'sync-spells-broken-'));
+  });
+
+  afterEach(async () => {
+    // Some tests strip execute permission on a subdir to trigger a real EACCES; restore it
+    // before rmSync, otherwise cleanup itself would fail to traverse into it.
+    await chmod(root, 0o755).catch(() => undefined);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  test('true for a dangling symlink (target missing, ENOENT)', async () => {
+    const link = path.join(root, 'dangling');
+    await symlink(path.join(root, 'nope'), link);
+    await expect(isBrokenLink(link)).resolves.toBe(true);
+  });
+
+  test('false for a healthy symlink whose target exists', async () => {
+    const target = path.join(root, 'real');
+    await mkdir(target);
+    const link = path.join(root, 'healthy');
+    await symlink(target, link);
+    await expect(isBrokenLink(link)).resolves.toBe(false);
+  });
+
+  test('true when a path segment is not a directory (ENOTDIR)', async () => {
+    // `not-a-dir` is a plain file; a target nested "inside" it can't exist — stat() reports
+    // ENOTDIR rather than ENOENT, and it must still be treated as a genuinely dangling link.
+    const notADir = path.join(root, 'not-a-dir');
+    await writeFile(notADir, 'x', 'utf8');
+    const link = path.join(root, 'enotdir-case');
+    await symlink(path.join(notADir, 'child'), link);
+    await expect(isBrokenLink(link)).resolves.toBe(true);
+  });
+
+  test('false when the target exists but is inaccessible (EACCES) — not dangling', async () => {
+    // Real permission-denied, not a mock: strip search (x) permission on the parent dir so
+    // stat() cannot traverse into it, while the target itself genuinely exists.
+    const blockedDir = path.join(root, 'blocked');
+    const realTarget = path.join(blockedDir, 'target');
+    await mkdir(realTarget, { recursive: true });
+    await chmod(blockedDir, 0o000);
+    const link = path.join(root, 'eacces-case');
+    await symlink(realTarget, link);
+    try {
+      await expect(isBrokenLink(link)).resolves.toBe(false);
+    } finally {
+      await chmod(blockedDir, 0o755);
+    }
+  });
+
+  test('false for a symlink loop (ELOOP) — not dangling', async () => {
+    // Two symlinks pointing at each other: a genuinely different failure mode from "target
+    // missing" and must not be auto-healed the same way a dangling link is.
+    const a = path.join(root, 'loop-a');
+    const b = path.join(root, 'loop-b');
+    await symlink(b, a);
+    await symlink(a, b);
+    await expect(isBrokenLink(a)).resolves.toBe(false);
   });
 });
 
@@ -154,6 +219,82 @@ describe('mergeGlobalSkills', () => {
     expect(results).toContainEqual(expect.objectContaining({ skill: 'picky', action: 'error' }));
     expect(await readlink(path.join(targetDir, 'picky'))).toBe(path.join(home, 'outside-target'));
   });
+
+  test('heals a dangling symlink at a desired name (e.g. after the registry root was renamed)', async () => {
+    // Simulates the real incident: the registry dir was renamed, so a link created under the
+    // old root now points at a path that no longer exists anywhere on disk.
+    const targetDir = path.join(home, 'claude', 'skills');
+    await mkdir(targetDir, { recursive: true });
+    const deadOldRoot = path.join(home, 'old-registry-root-that-was-renamed');
+    await symlink(path.join(deadOldRoot, 'foundation', 'picky'), path.join(targetDir, 'picky'));
+
+    const results = await mergeGlobalSkills(cfg(), 'claude-code', targetDir, desiredFor(['picky']));
+
+    expect(results).toContainEqual({ tool: 'claude-code', skill: 'picky', action: 'updated' });
+    expect(await readlink(path.join(targetDir, 'picky'))).toBe(path.join(sourceRoot, 'foundation', 'picky'));
+  });
+
+  test('heals a dangling symlink even when a same-named skill moved category (wrong-target AND broken)', async () => {
+    const targetDir = path.join(home, 'claude', 'skills');
+    await mkdir(targetDir, { recursive: true });
+    // Points inside the current sourceRoot, but at a path that no longer exists (skill moved / deleted).
+    await symlink(path.join(sourceRoot, 'old-category', 'picky'), path.join(targetDir, 'picky'));
+
+    const results = await mergeGlobalSkills(cfg(), 'claude-code', targetDir, desiredFor(['picky']));
+
+    expect(results).toContainEqual({ tool: 'claude-code', skill: 'picky', action: 'updated' });
+    expect(await readlink(path.join(targetDir, 'picky'))).toBe(path.join(sourceRoot, 'foundation', 'picky'));
+  });
+
+  test('preserves a healthy foreign symlink that is merely inaccessible (EACCES) — reported as error, not replaced', async () => {
+    // Real permission-denied (no mocking): the foreign target genuinely exists but its parent
+    // dir has search permission stripped, so stat() cannot traverse into it. This must NOT be
+    // treated as a dangling link — it's healthy, just temporarily unreadable by this process.
+    const targetDir = path.join(home, 'claude', 'skills');
+    await mkdir(targetDir, { recursive: true });
+    const blockedDir = path.join(home, 'blocked-outside-target');
+    const realTarget = path.join(blockedDir, 'target');
+    await mkdir(realTarget, { recursive: true });
+    await chmod(blockedDir, 0o000);
+    const foreignLink = path.join(targetDir, 'picky');
+    await symlink(realTarget, foreignLink);
+
+    try {
+      const results = await mergeGlobalSkills(cfg(), 'claude-code', targetDir, desiredFor(['picky']));
+      expect(results).toContainEqual(expect.objectContaining({ skill: 'picky', action: 'error' }));
+      expect(await readlink(foreignLink)).toBe(realTarget);
+    } finally {
+      await chmod(blockedDir, 0o755);
+    }
+  });
+
+  test('P2: leaves the original dangling link intact when building its replacement fails', async () => {
+    // Real (non-mocked) failure induction: the atomic-replace helper builds the new symlink at
+    // a temp SIBLING path (original name + a "~40 char" suffix) before renaming it over the
+    // original. A skill name near the filesystem's 255-byte NAME_MAX is valid on its own, but
+    // appending that suffix pushes the temp sibling's basename over the limit -> ENAMETOOLONG
+    // when creating the temp entry specifically, while the (unsuffixed, shorter) original name
+    // stays valid. This isolates exactly "building the replacement failed" without ever having
+    // touched the original — the invariant this fix exists to guarantee.
+    const longName = 'x'.repeat(230);
+    await mkdir(path.join(sourceRoot, 'foundation', longName), { recursive: true });
+    const targetDir = path.join(home, 'claude', 'skills');
+    await mkdir(targetDir, { recursive: true });
+    const deadOldRoot = path.join(home, 'old-registry-root-that-was-renamed');
+    const originalTarget = path.join(deadOldRoot, 'foundation', longName);
+    const link = path.join(targetDir, longName);
+    await symlink(originalTarget, link);
+
+    const results = await mergeGlobalSkills(cfg(), 'claude-code', targetDir, desiredFor([longName]));
+
+    expect(results).toContainEqual(expect.objectContaining({ skill: longName, action: 'error' }));
+    // The original dangling link must still be there, byte-for-byte as it was — never removed.
+    expect((await lstat(link)).isSymbolicLink()).toBe(true);
+    expect(await readlink(link)).toBe(originalTarget);
+    // No leftover temp entries in the target dir.
+    const entries = await readdir(targetDir);
+    expect(entries.filter((e: string) => e.includes('.sync-spells-tmp-'))).toEqual([]);
+  });
 });
 
 describe('mergeGlobalSkills (copy mode)', () => {
@@ -257,6 +398,18 @@ describe('mergeGlobalSkills (copy mode)', () => {
     await expect(lstat(path.join(targetDir, 'evolution'))).rejects.toThrow();
   });
 
+  test('heals a dangling symlink left in the target dir (e.g. after the registry root was renamed)', async () => {
+    await mkdir(targetDir, { recursive: true });
+    const deadOldRoot = path.join(home, 'old-registry-root-that-was-renamed');
+    await symlink(path.join(deadOldRoot, 'foundation', 'picky'), path.join(targetDir, 'picky'));
+
+    const results = await merge(['picky']);
+
+    expect(results).toContainEqual({ tool: 'kiro', skill: 'picky', action: 'updated' });
+    expect((await lstat(path.join(targetDir, 'picky'))).isSymbolicLink()).toBe(false);
+    expect(await readFile(path.join(targetDir, 'picky', 'SKILL.md'), 'utf8')).toBe('# picky');
+  });
+
   test('reports error and does not touch a foreign symlink occupying a desired name', async () => {
     await mkdir(targetDir, { recursive: true });
     await mkdir(path.join(home, 'outside-target'), { recursive: true });
@@ -264,6 +417,39 @@ describe('mergeGlobalSkills (copy mode)', () => {
     const results = await merge(['picky']);
     expect(results).toContainEqual(expect.objectContaining({ skill: 'picky', action: 'error' }));
     expect(await readlink(path.join(targetDir, 'picky'))).toBe(path.join(home, 'outside-target'));
+  });
+
+  test('P2: leaves the existing directory intact when building its replacement copy fails', async () => {
+    // Same real, deterministic NAME_MAX induction as the symlink-mode P2 test: a skill name near
+    // 255 bytes is valid on its own, but the atomic-replace helper's temp-sibling suffix pushes
+    // it over the limit, so building the replacement fails before the existing directory is ever
+    // touched. This exercises the case P2 explicitly called out: copy-mode's target can be a
+    // real, non-empty directory (not just a leftover symlink).
+    const longName = 'y'.repeat(230);
+    const srcDir = path.join(sourceRoot, 'foundation', longName);
+    await mkdir(srcDir, { recursive: true });
+    await writeFile(path.join(srcDir, 'SKILL.md'), '# new content', 'utf8');
+
+    await mkdir(targetDir, { recursive: true });
+    const destDir = path.join(targetDir, longName);
+    await mkdir(destDir, { recursive: true });
+    await writeFile(path.join(destDir, 'SKILL.md'), '# OLD CONTENT', 'utf8');
+    // Seed a manifest with a hash that won't match the (new) source content, forcing the
+    // "changed -> re-copy" branch rather than "skipped".
+    await writeFile(
+      path.join(targetDir, MANIFEST_NAME),
+      JSON.stringify({ version: 1, entries: { [longName]: { hash: 'stale-hash-does-not-match-current-source' } } }),
+      'utf8',
+    );
+
+    const results = await merge([longName]);
+
+    expect(results).toContainEqual(expect.objectContaining({ skill: longName, action: 'error' }));
+    // The original directory must still be there, completely unchanged — never lost.
+    expect(await readFile(path.join(destDir, 'SKILL.md'), 'utf8')).toBe('# OLD CONTENT');
+    const entries = await readdir(targetDir);
+    expect(entries.filter((e) => e.includes('.sync-spells-tmp-'))).toEqual([]);
+    expect(entries.filter((e) => e.endsWith('.bak'))).toEqual([]);
   });
 
   test('copies dereference symlinks inside a skill (no links reach the target)', async () => {

@@ -30,6 +30,77 @@ export const isOwnedLink = async (linkPath: string, sourceRoot: string): Promise
   }
 };
 
+/** True when linkPath is a symlink whose target no longer exists (dangling). Assumes the
+ * caller has already confirmed linkPath is a symlink (e.g. via lstat().isSymbolicLink()). A
+ * dangling link is dead weight regardless of where it used to point — e.g. after the registry
+ * root is renamed, links created under the old root become dangling and must be healed rather
+ * than skipped or reported as "foreign".
+ *
+ * Only ENOENT/ENOTDIR (the target path genuinely does not exist) count as "dangling". Any other
+ * stat failure — EACCES (a parent dir's search permission was pulled), ELOOP (a symlink cycle),
+ * etc. — means the link may well be healthy, just not traversable right now; auto-replacing it
+ * would delete a working foreign symlink. Those cases fall through to the existing "foreign
+ * symlink at target name" error instead. */
+export const isBrokenLink = async (linkPath: string): Promise<boolean> => {
+  try {
+    await fs.stat(linkPath); // follows the symlink; throws if the target is missing
+    return false;
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException)?.code;
+    return code === 'ENOENT' || code === 'ENOTDIR';
+  }
+};
+
+/** A same-directory sibling path to build a replacement at before swapping it into place.
+ * Same directory guarantees the eventual `rename` is on the same filesystem (required for
+ * `rename` to be atomic rather than falling back to a copy). */
+const tempSiblingPath = (target: string): string =>
+  `${target}.sync-spells-tmp-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+/** Atomically replace the symlink at `link` (which must already exist) so it points to
+ * `sourcePath`, without ever leaving `link` absent. Builds the new symlink at a temp sibling
+ * path first and only then `rename`s it over `link` — `rename` atomically replaces an existing
+ * symlink in a single syscall, so a failure while creating the temp symlink (the only step that
+ * can realistically fail here) leaves the original `link` completely untouched instead of
+ * unlinking it before the replacement is known to exist. */
+const replaceSymlinkAtomically = async (sourcePath: string, link: string): Promise<void> => {
+  const tmp = tempSiblingPath(link);
+  try {
+    await fs.symlink(sourcePath, tmp);
+    await fs.rename(tmp, link);
+  } catch (err) {
+    await fs.unlink(tmp).catch(() => undefined);
+    throw err;
+  }
+};
+
+/** Atomically replace whatever currently exists at `dest` (a leftover symlink, or a real,
+ * possibly non-empty directory) with a fresh copy of `sourcePath`. Builds the copy at a temp
+ * sibling first (a failure here — e.g. an unreadable source file, or a name too long — never
+ * touches `dest`). Only then does it move the existing entry aside to a backup sibling and swap
+ * the new copy into place, restoring the backup if that final swap fails for any reason — `dest`
+ * is never left absent-and-unrecoverable. */
+const replaceWithCopyAtomically = async (sourcePath: string, dest: string): Promise<void> => {
+  const tmp = tempSiblingPath(dest);
+  try {
+    await copyTree(sourcePath, tmp);
+  } catch (err) {
+    await fs.rm(tmp, { recursive: true, force: true }).catch(() => undefined);
+    throw err;
+  }
+
+  const backup = `${tmp}.bak`;
+  await fs.rename(dest, backup);
+  try {
+    await fs.rename(tmp, dest);
+  } catch (err) {
+    await fs.rename(backup, dest).catch(() => undefined);
+    await fs.rm(tmp, { recursive: true, force: true }).catch(() => undefined);
+    throw err;
+  }
+  await fs.rm(backup, { recursive: true, force: true });
+};
+
 /** Copy-mode merge for tools that cannot follow symlinks (e.g. Kiro). Ownership and
  * freshness come from a manifest in the target dir instead of readlink. */
 const mergeCopiedSkills = async (
@@ -66,12 +137,16 @@ const mergeCopiedSkills = async (
       manifest.entries[name] = { hash };
       results.push({ tool: toolKey, skill: name, action: 'linked' });
     } else if (st.isSymbolicLink()) {
-      if (await isOwnedLink(dest, sourceRoot)) {
-        // leftover from symlink mode — replace the link with a real copy
-        await fs.unlink(dest);
-        await copyTree(sourcePath, dest);
-        manifest.entries[name] = { hash };
-        results.push({ tool: toolKey, skill: name, action: 'updated' });
+      if (await isOwnedLink(dest, sourceRoot) || await isBrokenLink(dest)) {
+        // leftover from symlink mode (or a dangling link from before a registry rename) —
+        // replace it with a real copy
+        try {
+          await replaceWithCopyAtomically(sourcePath, dest);
+          manifest.entries[name] = { hash };
+          results.push({ tool: toolKey, skill: name, action: 'updated' });
+        } catch (err) {
+          results.push({ tool: toolKey, skill: name, action: 'error', error: `heal failed, original preserved: ${err}` });
+        }
       } else {
         results.push({ tool: toolKey, skill: name, action: 'error', error: 'foreign symlink at target name' });
       }
@@ -79,10 +154,13 @@ const mergeCopiedSkills = async (
       if (manifest.entries[name].hash === hash) {
         results.push({ tool: toolKey, skill: name, action: 'skipped' });
       } else {
-        await fs.rm(dest, { recursive: true, force: true });
-        await copyTree(sourcePath, dest);
-        manifest.entries[name] = { hash };
-        results.push({ tool: toolKey, skill: name, action: 'updated' });
+        try {
+          await replaceWithCopyAtomically(sourcePath, dest);
+          manifest.entries[name] = { hash };
+          results.push({ tool: toolKey, skill: name, action: 'updated' });
+        } catch (err) {
+          results.push({ tool: toolKey, skill: name, action: 'error', error: `re-copy failed, original preserved: ${err}` });
+        }
       }
     } else {
       results.push({ tool: toolKey, skill: name, action: 'error', error: 'foreign entry at target name' });
@@ -177,10 +255,15 @@ export const mergeGlobalSkills = async (
       const current = await fs.readlink(link);
       if (current === sourcePath) {
         results.push({ tool: toolKey, skill: name, action: 'skipped' });
-      } else if (await isOwnedLink(link, sourceRoot)) {
-        await fs.unlink(link);
-        await fs.symlink(sourcePath, link);
-        results.push({ tool: toolKey, skill: name, action: 'updated' });
+      } else if (await isOwnedLink(link, sourceRoot) || await isBrokenLink(link)) {
+        // Owned (points inside the current sourceRoot) OR dangling (e.g. a leftover link from
+        // before the registry root was renamed) — either way it's safe and desired to heal.
+        try {
+          await replaceSymlinkAtomically(sourcePath, link);
+          results.push({ tool: toolKey, skill: name, action: 'updated' });
+        } catch (err) {
+          results.push({ tool: toolKey, skill: name, action: 'error', error: `heal failed, original preserved: ${err}` });
+        }
       } else {
         results.push({ tool: toolKey, skill: name, action: 'error', error: 'foreign symlink at target name' });
       }
