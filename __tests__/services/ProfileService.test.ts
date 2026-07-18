@@ -68,6 +68,26 @@ describe('ProfileService', () => {
     expect(result.warnings).toContain('Skill path does not exist: global/git-commit');
   });
 
+  it('should not warn "no skills" for a recipe profile (categories/extras)', async () => {
+    const profile = {
+      name: 'recipe-profile',
+      categories: ['foundation'],
+      extras: ['coding/tdd']
+    };
+
+    const result = await service.validateProfile(profile);
+
+    expect(result.warnings).not.toContain('Profile has no skills');
+  });
+
+  it('should still warn "no skills" when profile defines no skill source at all', async () => {
+    const profile = { name: 'empty-profile' };
+
+    const result = await service.validateProfile(profile);
+
+    expect(result.warnings).toContain('Profile has no skills');
+  });
+
   it('should validate profile with error for empty name', async () => {
     const profile = {
       name: '',

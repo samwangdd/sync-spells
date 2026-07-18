@@ -2,6 +2,8 @@ import { Command } from 'commander';
 import { Config, readConfig } from '../lib/config';
 import { Profile } from '../types';
 import { ProfileService } from '../services/ProfileService';
+import { SkillService } from '../services/SkillService';
+import { ResolveService, ResolvedProfile } from '../services/ResolveService';
 
 export const runProfilesList = async (config: Config): Promise<Profile[]> => {
   const profileSvc = new ProfileService(config);
@@ -13,7 +15,16 @@ export const runProfilesShow = async (config: Config, name: string) => {
   const profile = await profileSvc.getProfile(name);
   const validation = profile ? await profileSvc.validateProfile(profile) : null;
 
-  return { profile, validation };
+  let resolved: ResolvedProfile | null = null;
+  if (profile) {
+    try {
+      resolved = await new ResolveService(config, profileSvc, new SkillService(config)).resolve(name);
+    } catch {
+      resolved = null; // e.g. circular/deep extends — validation warnings still shown
+    }
+  }
+
+  return { profile, validation, resolved };
 };
 
 export const registerProfiles = (program: Command, getConfig: () => Promise<Config> = readConfig): void => {
@@ -39,7 +50,7 @@ export const registerProfiles = (program: Command, getConfig: () => Promise<Conf
     .description('Show profile details')
     .action(async (name: string) => {
       const config = await getConfig();
-      const { profile, validation } = await runProfilesShow(config, name);
+      const { profile, validation, resolved } = await runProfilesShow(config, name);
 
       if (!profile) {
         console.log(`\n❌ Profile not found: ${name}\n`);
@@ -50,9 +61,22 @@ export const registerProfiles = (program: Command, getConfig: () => Promise<Conf
       if (profile.description) {
         console.log(`Description: ${profile.description}`);
       }
+      if (profile.extends) {
+        console.log(`Extends: ${profile.extends}`);
+      }
+      if (profile.categories?.length) {
+        console.log(`Categories: ${profile.categories.join(', ')}`);
+      }
+      if (profile.extras?.length) {
+        console.log(`Extras: ${profile.extras.join(', ')}`);
+      }
+      if (profile.excludes?.length) {
+        console.log(`Excludes: ${profile.excludes.join(', ')}`);
+      }
 
-      console.log(`\nSkills (${(profile.skills || []).length}):`);
-      for (const skill of (profile.skills || [])) {
+      const skills = resolved?.skills ?? profile.skills ?? [];
+      console.log(`\nSkills (${skills.length}, resolved):`);
+      for (const skill of skills) {
         const isWarn = validation?.warnings?.some(w => w.includes(skill));
         const icon = isWarn ? '✗' : '✓';
         const warning = isWarn ? '  [WARN: Skill path does not exist]' : '';

@@ -53,4 +53,28 @@ describe('profiles command', () => {
 
     expect(profile).toBeNull();
   });
+
+  it('should resolve skills for a recipe profile (categories + extras)', async () => {
+    await fs.mkdir(path.join(testDir, 'foundation', 'evolution'), { recursive: true });
+    await fs.mkdir(path.join(testDir, 'foundation', 'picky'), { recursive: true });
+    await fs.mkdir(path.join(testDir, 'coding', 'tdd'), { recursive: true });
+    await fs.writeFile(
+      path.join(testDir, 'profiles', 'recipe.json'),
+      JSON.stringify({
+        name: 'recipe',
+        categories: ['foundation'],
+        extras: ['coding/tdd']
+      })
+    );
+
+    const { profile, resolved } = await runProfilesShow(config, 'recipe');
+
+    expect(profile).not.toBeNull();
+    expect(resolved).not.toBeNull();
+    expect(resolved!.skills).toEqual([
+      'foundation/evolution',
+      'foundation/picky',
+      'coding/tdd'
+    ]);
+  });
 });

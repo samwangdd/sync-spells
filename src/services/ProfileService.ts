@@ -53,7 +53,11 @@ export class ProfileService {
       errors.push('Profile name is required');
     }
 
-    if (!profile.skills || profile.skills.length === 0) {
+    const hasSkillSource = (profile.skills?.length || 0) > 0 ||
+      (profile.categories?.length || 0) > 0 ||
+      (profile.extras?.length || 0) > 0 ||
+      !!profile.extends;
+    if (!hasSkillSource) {
       warnings.push('Profile has no skills');
     }
 
