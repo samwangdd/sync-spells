@@ -17,6 +17,7 @@ import { registerWorkspace } from './commands/workspace';
 import { registerWeb } from './commands/web';
 import { registerSources } from './commands/sources';
 import { readConfig } from './lib/config';
+import { applyCommandDetailsToDescriptions } from './lib/commandHelp';
 
 const program = new Command();
 
@@ -42,5 +43,7 @@ registerMcp(program);
 registerWorkspace(program, readConfig);
 registerWeb(program, readConfig);
 registerSources(program, readConfig);
+
+applyCommandDetailsToDescriptions(program);
 
 program.parse(process.argv);
