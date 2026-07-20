@@ -37,7 +37,7 @@ export const SkillDrawer: React.FC<{
   return (
     <div className="fixed inset-0 z-20 flex cursor-pointer justify-end" style={{ background: 'var(--scrim)' }} onClick={onClose}>
       <aside
-        className="flex h-full w-[50vw] min-w-[392px] max-w-[88vw] cursor-default flex-col overflow-y-auto border-l border-[var(--border)] bg-[var(--elev)] transition-transform duration-300 ease-out"
+        className="flex h-full w-[50vw] min-w-[392px] max-w-[88vw] cursor-default flex-col overflow-y-auto border-l border-[var(--border)] bg-[var(--panel)] transition-transform duration-300 ease-out"
         style={{ boxShadow: '-24px 0 60px -28px rgba(0,0,0,.45)', transform: shown ? 'translateX(0)' : 'translateX(100%)' }}
         onClick={(e) => e.stopPropagation()}
       >

@@ -44,7 +44,7 @@ export const SkillRow: React.FC<{
       className={`grid cursor-pointer items-center border-b border-[var(--border)] px-4 py-[13px] text-[12.5px] transition last:border-b-0 ${
         isSelected ? 'bg-[var(--accent-soft)] shadow-[inset_3px_0_0_var(--accent)]' : 'hover:bg-[var(--code)]'
       }`}
-      style={{ gridTemplateColumns: SKILL_GRID, columnGap: 14, fontFamily: 'var(--font-mono)' }}
+      style={{ gridTemplateColumns: SKILL_GRID, columnGap: 14 }}
     >
       {/* select */}
       <label className="flex items-center justify-center" onClick={(e) => e.stopPropagation()} title={`选择 ${skill.ref}`}>

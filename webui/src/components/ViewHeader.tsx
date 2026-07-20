@@ -11,19 +11,18 @@ export const ViewHeader: React.FC<{
   searchPlaceholder?: string;
   action?: React.ReactNode;
 }> = ({ title, count, subtitle, search, onSearch, searchRef, searchPlaceholder = '搜索 skill / 场景…', action }) => (
-  <header className="px-[30px] pb-[18px] pt-6">
+  <header className="px-8 pb-6 pt-8 lg:px-10">
     <div className="flex flex-wrap items-center gap-3">
-      <h1 className="text-[25px] font-bold tracking-[-0.03em]">{title}</h1>
+      <h1 className="text-[28px] font-bold tracking-[-0.035em]">{title}</h1>
       {count !== undefined && (
         <span
           className="rounded-full border border-[var(--border)] bg-[var(--code)] px-2 py-0.5 text-[12px] text-[var(--fg-dim)]"
-          style={{ fontFamily: 'var(--font-mono)' }}
         >
           {count}
         </span>
       )}
       <div className="ml-auto flex items-center gap-2.5">
-        <label className="flex h-[38px] w-64 items-center gap-2 rounded-[var(--radius-s)] border border-[var(--border)] bg-[var(--elev)] px-3 focus-within:border-[var(--accent)]">
+        <label className="flex h-10 w-64 items-center gap-2 rounded-[var(--radius-s)] border border-[var(--border)] bg-[var(--panel)] px-3 shadow-[0_1px_2px_rgba(0,0,0,.04)]">
           <SearchIcon size={15} className="text-[var(--fg-mute)]" />
           <input
             ref={searchRef}
@@ -31,11 +30,9 @@ export const ViewHeader: React.FC<{
             onChange={(e) => onSearch(e.target.value)}
             placeholder={searchPlaceholder}
             className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-[var(--fg-mute)]"
-            style={{ fontFamily: 'var(--font-mono)' }}
           />
           <kbd
-            className="rounded-[3px] border border-[var(--border)] bg-[var(--code)] px-1.5 py-0.5 text-[10.5px] text-[var(--fg-mute)]"
-            style={{ fontFamily: 'var(--font-mono)' }}
+            className="rounded-md border border-[var(--border)] bg-[var(--code)] px-1.5 py-0.5 text-[10.5px] text-[var(--fg-mute)]"
           >
             ⌘K
           </kbd>
@@ -43,6 +40,6 @@ export const ViewHeader: React.FC<{
         {action}
       </div>
     </div>
-    {subtitle && <p className="mt-2 max-w-3xl text-[13.5px] leading-6 text-[var(--fg-dim)]">{subtitle}</p>}
+    {subtitle && <p className="mt-2 max-w-3xl text-[14px] leading-6 text-[var(--fg-dim)]">{subtitle}</p>}
   </header>
 );

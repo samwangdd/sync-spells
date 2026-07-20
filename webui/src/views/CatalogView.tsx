@@ -169,12 +169,11 @@ export const CatalogView: React.FC<{
                   ? 'bg-[var(--accent)] text-[var(--accent-fg)]'
                   : 'border border-[var(--border)] text-[var(--fg-dim)] hover:border-[var(--border-strong)]'
               }`}
-              style={{ fontFamily: 'var(--font-mono)' }}
             >
               {c === 'all' ? `all · ${state.skills.length}` : formatCategoryFilterLabel(c, categoryCounts)}
             </button>
           ))}
-          <span className="ml-auto text-[11.5px] text-[var(--fg-mute)]" style={{ fontFamily: 'var(--font-mono)' }}>
+          <span className="ml-auto text-[11.5px] text-[var(--fg-mute)]">
             — {filtered.length} / {scopeTotal} —
           </span>
         </div>
@@ -205,7 +204,7 @@ export const CatalogView: React.FC<{
         <div className="overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--panel)]">
           <div
             className="grid items-center bg-[var(--code)] px-4 py-[11px] text-[10.5px] uppercase tracking-wide text-[var(--fg-mute)]"
-            style={{ gridTemplateColumns: SKILL_GRID, columnGap: 14, fontFamily: 'var(--font-mono)' }}
+            style={{ gridTemplateColumns: SKILL_GRID, columnGap: 14 }}
           >
             <span />
             <span />
@@ -217,7 +216,7 @@ export const CatalogView: React.FC<{
             <span />
           </div>
           {filtered.length === 0 ? (
-            <p className="px-4 py-8 text-center text-[12.5px] text-[var(--fg-mute)]" style={{ fontFamily: 'var(--font-mono)' }}>
+            <p className="px-4 py-8 text-center text-[12.5px] text-[var(--fg-mute)]">
               没有匹配的 skill{search.trim() ? ` — ${search.trim()}` : ''}
             </p>
           ) : (

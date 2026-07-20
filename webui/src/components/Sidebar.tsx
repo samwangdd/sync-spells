@@ -3,7 +3,7 @@ import type { QueryTab } from '../urlState';
 import type { Theme } from '../theme';
 import { ScenesIcon, SkillsIcon, SunIcon, MoonIcon } from './icons';
 
-const APP_VERSION = 'local · v2.0.0';
+const APP_VERSION = '本地工作区';
 
 type NavItem = { tab: QueryTab; label: string; icon: React.FC<{ size?: number; className?: string }>; count: number };
 
@@ -21,18 +21,18 @@ export const Sidebar: React.FC<{
   ];
 
   return (
-    <aside className="flex h-screen w-[250px] shrink-0 flex-col gap-5 border-r border-[var(--border)] bg-[var(--elev)] px-4 py-5">
+    <aside className="flex h-screen w-[264px] shrink-0 flex-col gap-6 border-r border-[var(--border)] bg-[var(--elev)] px-4 py-5 backdrop-blur-2xl">
       {/* Brand */}
       <div className="flex items-center gap-2.5">
         <span
-          className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-s)] bg-[var(--accent)] text-base font-bold text-[var(--accent-fg)]"
+          className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-[var(--accent)] text-[18px] font-semibold text-[var(--accent-fg)] shadow-[0_4px_12px_color-mix(in_srgb,var(--accent)_32%,transparent)]"
           aria-hidden="true"
         >
-          &gt;
+          ✦
         </span>
         <span className="flex flex-col leading-tight">
           <span className="text-[15px] font-bold tracking-[-0.02em]">sync·spells</span>
-          <span className="font-mono text-[10.5px] text-[var(--fg-mute)]" style={{ fontFamily: 'var(--font-mono)' }}>
+          <span className="text-[11px] font-medium text-[var(--fg-mute)]">
             {APP_VERSION}
           </span>
         </span>
@@ -42,9 +42,8 @@ export const Sidebar: React.FC<{
       <nav className="flex flex-col gap-[3px]">
         <span
           className="mb-1 px-2 text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--fg-mute)]"
-          style={{ fontFamily: 'var(--font-mono)' }}
         >
-          // workspace
+          工作区
         </span>
         {items.map(({ tab: t, label, icon: Icon, count }) => {
           const active = tab === t;
@@ -54,7 +53,7 @@ export const Sidebar: React.FC<{
               type="button"
               onClick={() => onTab(t)}
               aria-current={active ? 'page' : undefined}
-              className={`flex items-center gap-2.5 rounded-[var(--radius-s)] px-[11px] py-[9px] text-[13.5px] transition ${
+              className={`flex items-center gap-2.5 rounded-[var(--radius-s)] px-[11px] py-[9px] text-[14px] transition ${
                 active
                   ? 'bg-[var(--accent-soft)] font-semibold text-[var(--accent)]'
                   : 'font-medium text-[var(--fg-dim)] hover:bg-[var(--code)]'
@@ -72,8 +71,8 @@ export const Sidebar: React.FC<{
 
       {/* Footer — theme toggle */}
       <div className="mt-auto flex items-center justify-between border-t border-[var(--border)] pt-4">
-        <span className="text-[12px] text-[var(--fg-dim)]" style={{ fontFamily: 'var(--font-mono)' }}>
-          theme: {theme}
+        <span className="text-[12px] text-[var(--fg-dim)]">
+          {theme === 'dark' ? '深色外观' : '浅色外观'}
         </span>
         <button
           type="button"
