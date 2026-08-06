@@ -43,6 +43,8 @@ spells sync
 
 Creates symlinks from your source directory into each tool's config directory. Existing real directories are backed up to `~/.sync-spells/backups/`.
 
+`spells sync` also refreshes every configured project binding, so each bound project is re-materialized with its own preset without running `spells use` in each repository.
+
 `spells sync` also runs an **agents pass**. Agent definitions are authored once as canonical Markdown in `agents/{global,coding,system}/*.md` (YAML frontmatter + body) and adapted to each enabled tool:
 
 | Tool | Target | How |

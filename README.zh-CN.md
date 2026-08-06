@@ -43,6 +43,8 @@ spells sync
 
 将源目录通过 symlink 链接到各工具的配置目录。已有的真实目录会被备份到 `~/.sync-spells/backups/`。
 
+`spells sync` 也会刷新所有已配置的项目 binding：每个绑定项目会按自己的 preset 重新物化 skills，不需要逐个仓库执行 `spells use`。
+
 `spells sync` 还会执行一次 **agents pass**。Agent 定义只写一份 canonical Markdown，放在 `agents/{global,coding,system}/*.md`（YAML frontmatter + 正文），并按每个启用的工具适配：
 
 | 工具 | 目标 | 方式 |

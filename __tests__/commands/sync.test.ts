@@ -226,6 +226,53 @@ describe('sync command', () => {
 
     await expect(runSync()).rejects.toThrow('No source configured');
   });
+
+  test('runBoundProjectSync refreshes every configured project binding with its own profile', async () => {
+    const { runBoundProjectSync } = loadSyncModule(tempHome);
+    const sourceDir = path.join(tempHome, 'source');
+    const profilesDir = path.join(sourceDir, 'profiles');
+    const projectA = path.join(tempHome, 'project-a');
+    const projectB = path.join(tempHome, 'project-b');
+
+    mkdirSync(path.join(sourceDir, 'coding', 'web-perf'), { recursive: true });
+    mkdirSync(path.join(sourceDir, 'knowledge', 'notes'), { recursive: true });
+    mkdirSync(profilesDir, { recursive: true });
+    mkdirSync(projectA, { recursive: true });
+    mkdirSync(projectB, { recursive: true });
+    writeFileSync(path.join(sourceDir, 'coding', 'web-perf', 'SKILL.md'), '# Web Perf', 'utf8');
+    writeFileSync(path.join(sourceDir, 'knowledge', 'notes', 'SKILL.md'), '# Notes', 'utf8');
+    writeFileSync(path.join(profilesDir, 'coding.json'), JSON.stringify({ name: 'coding', extras: ['coding/web-perf'] }), 'utf8');
+    writeFileSync(path.join(profilesDir, 'knowledge.json'), JSON.stringify({ name: 'knowledge', extras: ['knowledge/notes'] }), 'utf8');
+
+    writeTestConfig(tempHome, sourceDir, {
+      codex: {
+        enabled: true,
+        configPath: path.join(tempHome, '.codex'),
+        mappings: [{ from: 'global', to: 'skills' }],
+      },
+    });
+    const configPath = path.join(tempHome, '.sync-spells', 'config.json');
+    const config = JSON.parse(await fs.readFile(configPath, 'utf8'));
+    config.profilesDir = profilesDir;
+    config.projectBindings = [
+      { path: projectA, profile: 'coding' },
+      { path: projectB, profile: 'knowledge' },
+    ];
+    writeFileSync(configPath, JSON.stringify(config), 'utf8');
+
+    const results = await runBoundProjectSync();
+
+    expect(results.map((result) => ({ projectPath: result.projectPath, profile: result.profile }))).toEqual([
+      { projectPath: projectA, profile: 'coding' },
+      { projectPath: projectB, profile: 'knowledge' },
+    ]);
+    expect(await fs.readlink(path.join(projectA, '.codex', 'skills', 'web-perf'))).toBe(
+      path.join(sourceDir, 'coding', 'web-perf'),
+    );
+    expect(await fs.readlink(path.join(projectB, '.codex', 'skills', 'notes'))).toBe(
+      path.join(sourceDir, 'knowledge', 'notes'),
+    );
+  });
 });
 
 describe('registerSync', () => {

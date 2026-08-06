@@ -1,12 +1,14 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { Command } from 'commander';
-import { readConfig, expandHome } from '../lib/config';
+import { Config, readConfig, expandHome } from '../lib/config';
 import { checkSymlinkState, createSymlink, removeSymlink } from '../lib/symlink';
 import { backupPath } from '../lib/backup';
+import { ProjectActivationResult } from '../types';
 import { runAgentSync } from './sync-agents';
 import { runGuidanceSync } from './sync-guidance';
 import { runGlobalSync } from './sync-global';
+import { runUse } from './use';
 
 interface SyncResult {
   tool: string;
@@ -80,6 +82,20 @@ export const runSync = async (): Promise<SyncResult[]> => {
   return results;
 };
 
+export const runBoundProjectSync = async (
+  config?: Config
+): Promise<ProjectActivationResult[]> => {
+  const finalConfig = config || await readConfig();
+  const bindings = finalConfig.projectBindings || [];
+  const results: ProjectActivationResult[] = [];
+
+  for (const binding of bindings) {
+    results.push(await runUse(finalConfig, binding.path, binding.profile));
+  }
+
+  return results;
+};
+
 export const registerSync = (program: Command): void => {
   program
     .command('sync')
@@ -141,6 +157,21 @@ export const registerSync = (program: Command): void => {
         console.log(`Agents: ${agentsChanged} updated, ${agentResults.length - agentsChanged} unchanged.`);
       } catch (e) {
         console.log(`Agents: skipped (${e instanceof Error ? e.message : String(e)})`);
+      }
+
+      try {
+        const projectResults = await runBoundProjectSync();
+        for (const result of projectResults) {
+          const changed = result.skills.filter((skill) => skill.status !== 'skipped').length;
+          console.log(`  + [project] ${result.profile} → ${result.projectPath}: ${changed} updated`);
+        }
+        const changed = projectResults.reduce(
+          (count, result) => count + result.skills.filter((skill) => skill.status !== 'skipped').length,
+          0,
+        );
+        console.log(`Projects: ${changed} updated, ${projectResults.length} configured.`);
+      } catch (e) {
+        console.log(`Projects: skipped (${e instanceof Error ? e.message : String(e)})`);
       }
     });
 };
