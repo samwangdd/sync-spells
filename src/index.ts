@@ -18,6 +18,7 @@ import { registerWeb } from './commands/web';
 import { registerSources } from './commands/sources';
 import { readConfig } from './lib/config';
 import { applyCommandDetailsToDescriptions } from './lib/commandHelp';
+import { configureColorfulHelp } from './lib/helpStyle';
 
 const program = new Command();
 
@@ -45,5 +46,6 @@ registerWeb(program, readConfig);
 registerSources(program, readConfig);
 
 applyCommandDetailsToDescriptions(program);
+configureColorfulHelp(program);
 
 program.parse(process.argv);
