@@ -90,6 +90,53 @@ describe('createApiHandler', () => {
     const res = await handle('GET', '/api/nope', undefined);
     expect(res.status).toBe(404);
   });
+
+  it('GET /api/state returns 500 instead of rejecting when the source read fails', async () => {
+    const failing = createApiHandler({
+      ...deps,
+      getState: async () => { throw scandirEperm(); },
+    } as any);
+
+    const res = await failing('GET', '/api/state', undefined);
+    expect(res.status).toBe(500);
+    expect((res.body as any).error).toContain('EPERM');
+  });
+});
+
+const scandirEperm = () =>
+  Object.assign(
+    new Error("EPERM: operation not permitted, scandir '/icloud/oh-my-sync-spells/profiles'"),
+    { code: 'EPERM', errno: -1, syscall: 'scandir' },
+  );
+
+describe('createServer error handling', () => {
+  let server: http.Server;
+
+  afterEach(async () => {
+    if (server) await new Promise<void>((r) => server.close(() => r()));
+  });
+
+  it('answers 500 and keeps serving after /api/state fails, instead of crashing the process', async () => {
+    let shouldFail = true;
+    const flaky = {
+      ...deps,
+      getState: async () => {
+        if (shouldFail) { shouldFail = false; throw scandirEperm(); }
+        return sampleState;
+      },
+    };
+    server = createServer(flaky as any, '/tmp/nonexistent-dist');
+    const port = await startServer(server, 4331);
+
+    const first = await fetch(`http://127.0.0.1:${port}/api/state`);
+    expect(first.status).toBe(500);
+    expect((await first.json() as any).error).toContain('EPERM');
+
+    // the process must still be alive and serving
+    const second = await fetch(`http://127.0.0.1:${port}/api/state`);
+    expect(second.status).toBe(200);
+    expect(await second.json()).toEqual(sampleState);
+  });
 });
 
 describe('startServer', () => {

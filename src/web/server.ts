@@ -20,7 +20,9 @@ export interface ApiResult {
 const isValidationError = (e: unknown): boolean =>
   e instanceof Error && e.name === 'ProfileValidationError';
 
-export const createApiHandler =
+const errorMessage = (e: unknown): string => (e instanceof Error ? e.message : String(e));
+
+const createApiDispatcher =
   (deps: ApiDeps) =>
   async (method: string, urlPath: string, body: unknown): Promise<ApiResult> => {
     if (method === 'GET' && urlPath === '/api/state') {
@@ -89,6 +91,23 @@ export const createApiHandler =
     return { status: 404, body: { error: `Not found: ${method} ${urlPath}` } };
   };
 
+/**
+ * Any route that forgets its own try/catch — or fails in a way it didn't anticipate, e.g. a
+ * transient iCloud EPERM while scanning the source tree — must degrade to a 500 body. An
+ * escaping rejection would become an unhandled rejection and take the whole `spells web`
+ * process down with it.
+ */
+export const createApiHandler = (deps: ApiDeps) => {
+  const dispatch = createApiDispatcher(deps);
+  return async (method: string, urlPath: string, body: unknown): Promise<ApiResult> => {
+    try {
+      return await dispatch(method, urlPath, body);
+    } catch (e) {
+      return { status: 500, body: { error: errorMessage(e) } };
+    }
+  };
+};
+
 const CONTENT_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -113,28 +132,40 @@ export const createServer = (deps: ApiDeps, distDir: string): http.Server => {
   return http.createServer(async (req, res) => {
     const urlPath = (req.url || '/').split('?')[0];
 
-    if (urlPath.startsWith('/api/')) {
-      const body = req.method === 'PUT' || req.method === 'POST' || req.method === 'PATCH' ? await readBody(req) : undefined;
-      const result = await apiHandler(req.method || 'GET', urlPath, body);
-      res.writeHead(result.status, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify(result.body));
-      return;
-    }
-
-    const rel = urlPath === '/' ? 'index.html' : urlPath.replace(/^\/+/, '');
-    const filePath = path.join(distDir, rel);
+    // Last line of defense: this listener is async, so anything escaping it becomes an
+    // unhandled rejection and kills the server process instead of failing one request.
     try {
-      const data = await fs.readFile(filePath);
-      res.writeHead(200, { 'Content-Type': CONTENT_TYPES[path.extname(filePath)] || 'application/octet-stream' });
-      res.end(data);
-    } catch {
-      // SPA fallback
+      if (urlPath.startsWith('/api/')) {
+        const body = req.method === 'PUT' || req.method === 'POST' || req.method === 'PATCH' ? await readBody(req) : undefined;
+        const result = await apiHandler(req.method || 'GET', urlPath, body);
+        res.writeHead(result.status, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(result.body));
+        return;
+      }
+
+      const rel = urlPath === '/' ? 'index.html' : urlPath.replace(/^\/+/, '');
+      const filePath = path.join(distDir, rel);
       try {
-        const html = await fs.readFile(path.join(distDir, 'index.html'));
-        res.writeHead(200, { 'Content-Type': CONTENT_TYPES['.html'] });
-        res.end(html);
+        const data = await fs.readFile(filePath);
+        res.writeHead(200, { 'Content-Type': CONTENT_TYPES[path.extname(filePath)] || 'application/octet-stream' });
+        res.end(data);
       } catch {
-        res.writeHead(404).end('Not found');
+        // SPA fallback
+        try {
+          const html = await fs.readFile(path.join(distDir, 'index.html'));
+          res.writeHead(200, { 'Content-Type': CONTENT_TYPES['.html'] });
+          res.end(html);
+        } catch {
+          res.writeHead(404).end('Not found');
+        }
+      }
+    } catch (e) {
+      console.error(`spells web: ${req.method} ${urlPath} failed:`, e);
+      if (!res.headersSent) {
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: errorMessage(e) }));
+      } else {
+        res.end();
       }
     }
   });
