@@ -2,6 +2,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { Config } from '../lib/config';
 import { ProfileNotFoundError } from '../lib/errors';
+import { withFsRetry } from '../lib/fsRetry';
 import { Profile, ValidationResult } from '../types';
 
 const isProfile = (value: unknown): value is Profile => {
@@ -24,14 +25,15 @@ export class ProfileService {
       return [];
     }
 
-    const files = await fs.readdir(profilesDir);
+    // iCloud can fail a scandir/open with a transient EPERM mid-sync — see lib/fsRetry.
+    const files = await withFsRetry(() => fs.readdir(profilesDir));
     const jsonFiles = files.filter(f => f.endsWith('.json'));
 
     const profiles: Profile[] = [];
 
     for (const file of jsonFiles) {
       const filePath = path.join(profilesDir, file);
-      const content = await fs.readFile(filePath, 'utf8');
+      const content = await withFsRetry(() => fs.readFile(filePath, 'utf8'));
       const parsed: unknown = JSON.parse(content);
       if (!isProfile(parsed)) continue;
       profiles.push(parsed);
