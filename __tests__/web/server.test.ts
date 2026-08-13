@@ -91,6 +91,19 @@ describe('createApiHandler', () => {
     expect(res.status).toBe(404);
   });
 
+  it('GET /api/health returns 200 without touching the source tree', async () => {
+    const noFs = createApiHandler({
+      ...deps,
+      getState: async () => { throw new Error('must not be called'); },
+      readMarkdown: async () => { throw new Error('must not be called'); },
+    } as any);
+
+    const res = await noFs('GET', '/api/health', undefined);
+    expect(res.status).toBe(200);
+    expect((res.body as any).ok).toBe(true);
+    expect(typeof (res.body as any).uptimeMs).toBe('number');
+  });
+
   it('GET /api/state returns 500 instead of rejecting when the source read fails', async () => {
     const failing = createApiHandler({
       ...deps,
@@ -144,6 +157,15 @@ describe('startServer', () => {
   let blocker: http.Server;
   let realServer: http.Server;
 
+  const trivialDeps = {
+    getState: async () => ({ profiles: [], skills: [], categories: [] }),
+    writeProfile: async () => ({} as any),
+    readMarkdown: async () => '',
+    removeSkillFromCategory: async () => ({ removedRef: '', movedTo: '' }),
+    moveSkillToCategory: async () => ({ removedRef: '', movedTo: '' }),
+    createCategory: async () => ({ name: '', skillRefs: [] }),
+  };
+
   afterEach(async () => {
     await Promise.all([
       realServer ? new Promise<void>((r) => realServer.close(() => r())) : Promise.resolve(),
@@ -154,19 +176,35 @@ describe('startServer', () => {
   it('auto-increments to the next port when preferred is busy', async () => {
     // occupy PORT
     blocker = http.createServer();
-    await new Promise<void>((r) => blocker.listen(PORT, r));
+    await new Promise<void>((r) => blocker.listen(PORT, '127.0.0.1', r));
 
-    const trivialDeps = {
-      getState: async () => ({ profiles: [], skills: [], categories: [] }),
-      writeProfile: async () => ({} as any),
-      readMarkdown: async () => '',
-      removeSkillFromCategory: async () => ({ removedRef: '', movedTo: '' }),
-      moveSkillToCategory: async () => ({ removedRef: '', movedTo: '' }),
-      createCategory: async () => ({ name: '', skillRefs: [] }),
-    };
     realServer = createServer(trivialDeps, '/tmp/nonexistent-dist');
 
     const got = await startServer(realServer, PORT);
     expect(got).toBe(PORT + 1);
+  });
+
+  it('rejects instead of drifting to the next port when maxAttempts is 0', async () => {
+    blocker = http.createServer();
+    await new Promise<void>((r) => blocker.listen(PORT, '127.0.0.1', r));
+
+    realServer = createServer(trivialDeps, '/tmp/nonexistent-dist');
+
+    await expect(startServer(realServer, PORT, { maxAttempts: 0 }))
+      .rejects.toMatchObject({ code: 'EADDRINUSE' });
+  });
+
+  it('binds only the requested host', async () => {
+    realServer = createServer(trivialDeps, '/tmp/nonexistent-dist');
+    const port = await startServer(realServer, 4341, { host: '127.0.0.1' });
+
+    expect(realServer.address()).toMatchObject({ address: '127.0.0.1', port });
+  });
+
+  it('defaults to loopback-only binding', async () => {
+    realServer = createServer(trivialDeps, '/tmp/nonexistent-dist');
+    await startServer(realServer, 4343);
+
+    expect((realServer.address() as { address: string }).address).toBe('127.0.0.1');
   });
 });

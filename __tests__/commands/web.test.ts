@@ -2,8 +2,10 @@ import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { PassThrough } from 'stream';
+import * as http from 'http';
+import * as net from 'net';
 import { Config } from '../../src/lib/config';
-import { runWeb, resolveWithin } from '../../src/commands/web';
+import { runWeb, resolveWithin, installShutdownHandlers } from '../../src/commands/web';
 
 describe('runWeb', () => {
   let dir: string; let cfg: Config;
@@ -71,6 +73,69 @@ describe('runWeb', () => {
       movedTo: 'workflow/git-commit',
     });
     await expect(fs.access(path.join(dir, 'workflow', 'git-commit', 'SKILL.md'))).resolves.toBeUndefined();
+  });
+});
+
+describe('installShutdownHandlers', () => {
+  const signals = ['SIGTERM', 'SIGINT'] as const;
+  afterEach(() => { for (const s of signals) process.removeAllListeners(s); });
+
+  const listen = (server: http.Server) =>
+    new Promise<number>((r) => server.listen(0, '127.0.0.1', () => r((server.address() as any).port)));
+
+  it('closes the server and exits 0 so launchd reads it as a deliberate stop', async () => {
+    const server = http.createServer();
+    await listen(server);
+    const codes: number[] = [];
+    installShutdownHandlers(server, (c) => codes.push(c));
+
+    process.emit('SIGTERM' as any);
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(codes).toEqual([0]);
+    expect(server.listening).toBe(false);
+  });
+
+  it('force-exits 0 when an in-flight request holds close() open past the grace period', async () => {
+    let hung: http.ServerResponse | undefined;
+    // A request that never responds keeps its connection active, so server.close() never
+    // completes. Without the grace timer the process would hang until launchd SIGKILLs it.
+    const server = http.createServer((_req, res) => { hung = res; });
+    const port = await listen(server);
+
+    const socket = net.connect(port, '127.0.0.1');
+    socket.on('error', () => { /* reset on purpose during the forced shutdown */ });
+    await new Promise((r) => socket.once('connect', r));
+    socket.write('GET / HTTP/1.1\r\nHost: localhost\r\n\r\n');
+    await new Promise((r) => setTimeout(r, 30));
+    expect(hung).toBeDefined();
+
+    const codes: number[] = [];
+    // closeAllConnections would cut the knot; null it out to exercise the timer itself.
+    (server as any).closeAllConnections = undefined;
+    installShutdownHandlers(server, (c) => codes.push(c), 30);
+
+    process.emit('SIGTERM' as any);
+    await new Promise((r) => setTimeout(r, 120));
+
+    expect(codes[0]).toBe(0);
+
+    hung?.end();
+    socket.destroy();
+    await new Promise<void>((r) => server.close(() => r()));
+  });
+
+  it('ignores a second signal instead of exiting twice', async () => {
+    const server = http.createServer();
+    await listen(server);
+    const codes: number[] = [];
+    installShutdownHandlers(server, (c) => codes.push(c));
+
+    process.emit('SIGTERM' as any);
+    process.emit('SIGINT' as any);
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(codes).toEqual([0]);
   });
 });
 

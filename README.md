@@ -183,10 +183,44 @@ Launch a local web UI to browse all skills, inspect each profile's resolved skil
 
 ```bash
 npm run web:build        # one-time / after frontend changes
-spells web               # http://localhost:4178, opens browser
+spells web               # http://127.0.0.1:4178, opens browser
 spells web --port 5000   # custom port (auto-increments if busy)
+spells web --strict-port # fail instead of trying the next port
+spells web --host 0.0.0.0  # expose on the LAN (the API is unauthenticated)
 spells web --no-open     # do not open the browser
 ```
+
+The server binds loopback only by default — the API has no authentication.
+
+### `spells service` (macOS)
+
+Runs `spells web` as a launchd agent: it starts at login and is relaunched automatically if the
+process dies.
+
+```bash
+npm run web:build            # required — install refuses without webui/dist
+spells service install       # write the plist and start the agent
+spells service status        # state, pid, url, node path
+spells service restart
+spells service logs -f       # tail the error log
+spells service uninstall
+```
+
+Details worth knowing:
+
+- **Plist**: `~/Library/LaunchAgents/com.sync-spells.web.plist`. **Logs**: `~/.sync-spells/logs/web.{out,err}.log`.
+- `KeepAlive = {SuccessfulExit: false}` means a crash is relaunched (throttled to 10s) but a
+  deliberate `spells service uninstall` / `launchctl bootout` stays down.
+- The agent runs with `--strict-port`, so a port conflict fails loudly instead of silently drifting
+  to 4179 and breaking your bookmark.
+- launchd has no `$PATH`, so the plist records an **absolute** node path. `install` prefers a stable
+  location (`/opt/homebrew/bin/node`) over the version-managed node you happen to be running —
+  an nvm/volta path disappears on the next node upgrade. Override with `--node <path>`; `status`
+  flags the path if it ever goes missing.
+- `install` warns if something else already holds the port. A stray `spells web` bound to `0.0.0.0`
+  coexists with the agent's `127.0.0.1` bind under BSD socket semantics, so it will silently serve
+  stale code — `lsof -nP -iTCP:4178 -sTCP:LISTEN` finds it.
+- Reinstall after moving the repo or upgrading node; the plist hardcodes both paths.
 
 ## Local Development
 

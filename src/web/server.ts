@@ -17,14 +17,28 @@ export interface ApiResult {
   body: unknown;
 }
 
+/** The API has no authentication, so it must not be reachable off-box by default. */
+export const DEFAULT_HOST = '127.0.0.1';
+
 const isValidationError = (e: unknown): boolean =>
   e instanceof Error && e.name === 'ProfileValidationError';
 
 const errorMessage = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
+const startedAt = Date.now();
+
 const createApiDispatcher =
   (deps: ApiDeps) =>
   async (method: string, urlPath: string, body: unknown): Promise<ApiResult> => {
+    /**
+     * Liveness probe for supervisors (launchd, `spells service status`). Deliberately does not
+     * touch the source tree — /api/state scans the whole skill directory, which is far too
+     * expensive to poll and would fail on a transient iCloud EPERM.
+     */
+    if (method === 'GET' && urlPath === '/api/health') {
+      return { status: 200, body: { ok: true, uptimeMs: Date.now() - startedAt } };
+    }
+
     if (method === 'GET' && urlPath === '/api/state') {
       return { status: 200, body: await deps.getState() };
     }
@@ -171,8 +185,21 @@ export const createServer = (deps: ApiDeps, distDir: string): http.Server => {
   });
 };
 
-export const startServer = (server: http.Server, preferredPort: number, maxAttempts = 10): Promise<number> =>
+export interface StartServerOptions {
+  /** Interface to bind. Defaults to loopback — the API is unauthenticated. */
+  host?: string;
+  /** Extra ports to try after EADDRINUSE. 0 = fail fast (see `spells web --strict-port`). */
+  maxAttempts?: number;
+}
+
+export const startServer = (
+  server: http.Server,
+  preferredPort: number,
+  opts: StartServerOptions = {},
+): Promise<number> =>
   new Promise((resolve, reject) => {
+    const host = opts.host ?? DEFAULT_HOST;
+    const maxAttempts = opts.maxAttempts ?? 10;
     let port = preferredPort;
     let attempts = 0;
     const tryListen = () => {
@@ -187,7 +214,7 @@ export const startServer = (server: http.Server, preferredPort: number, maxAttem
         }
       };
       server.once('error', onError);
-      server.listen(port, () => {
+      server.listen(port, host, () => {
         server.removeListener('error', onError);
         resolve(port);
       });

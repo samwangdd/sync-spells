@@ -15,6 +15,7 @@ import { registerBind } from './commands/bind';
 import { registerMcp } from './commands/mcp';
 import { registerWorkspace } from './commands/workspace';
 import { registerWeb } from './commands/web';
+import { registerService } from './commands/service';
 import { registerSources } from './commands/sources';
 import { readConfig } from './lib/config';
 import { applyCommandDetailsToDescriptions } from './lib/commandHelp';
@@ -43,6 +44,7 @@ registerBind(program);
 registerMcp(program);
 registerWorkspace(program, readConfig);
 registerWeb(program, readConfig);
+registerService(program);
 registerSources(program, readConfig);
 
 applyCommandDetailsToDescriptions(program);
