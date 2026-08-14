@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import * as path from 'path';
 import { Config } from '../lib/config';
 import { SkillService } from '../services/SkillService';
+import { registerSkillEvals } from './skill-evals';
 
 export const registerSkill = (program: Command, getConfig: () => Promise<Config>): void => {
   const skillCmd = program.command('skill').description(
@@ -12,6 +13,8 @@ export const registerSkill = (program: Command, getConfig: () => Promise<Config>
     '  globalize <skill>   Move a skill into global\n' +
     '  localize <skill>    Move a global skill into a local category'
   );
+
+  registerSkillEvals(skillCmd, getConfig);
 
   skillCmd
     .command('add <path>')

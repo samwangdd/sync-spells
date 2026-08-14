@@ -4,6 +4,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { Config } from '../lib/config';
 import { ProfileService } from '../services/ProfileService';
+import { auditSkillRegistry, collectGitChangedPaths } from '../lib/skillEvals';
 
 export interface DoctorResult {
   check: string;
@@ -30,6 +31,18 @@ export const runDoctor = async (config: Config): Promise<DoctorResult[]> => {
   } catch {
     results.push({ check: 'registry', status: 'error', message: `Registry directory not found: ${config.source}` });
   }
+
+  const changedPaths = await collectGitChangedPaths(config.source, 'HEAD^').catch(() => []);
+  const evalReport = await auditSkillRegistry(config.source, { changedPaths });
+  const evalErrors = evalReport.issues.filter((issue) => issue.level === 'error').length;
+  const evalWarnings = evalReport.issues.filter((issue) => issue.level === 'warning').length;
+  results.push({
+    check: 'skill-evals',
+    status: evalErrors > 0 ? 'error' : evalWarnings > 0 ? 'warn' : 'ok',
+    message: evalErrors > 0
+      ? `Skill evals: ${evalErrors} error(s), ${evalWarnings} warning(s)`
+      : `Skill evals: ${evalWarnings} warning(s)`,
+  });
 
   // Check profiles
   const profileSvc = new ProfileService(config);

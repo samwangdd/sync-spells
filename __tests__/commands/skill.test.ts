@@ -20,13 +20,23 @@ describe('SkillService extended', () => {
     await fs.rm(testDir, { recursive: true, force: true });
   });
 
-  it('should create a new skill with SKILL.md', async () => {
+  it('should create a new skill with SKILL.md and an eval suite skeleton', async () => {
     const skillPath = await service.createSkill('my-skill', 'inbox');
 
     expect(skillPath).toContain('inbox/my-skill');
 
     const skillMd = await fs.readFile(path.join(testDir, 'inbox', 'my-skill', 'SKILL.md'), 'utf8');
     expect(skillMd).toContain('my-skill');
+    const evals = JSON.parse(await fs.readFile(
+      path.join(testDir, 'inbox', 'my-skill', 'evals', 'evals.json'),
+      'utf8',
+    ));
+    expect(evals).toEqual({
+      schema_version: 1,
+      skill: 'my-skill',
+      evaluation_protocol: 'Run with isolated baseline and current skill snapshots.',
+      cases: [],
+    });
   });
 
   it('should not overwrite existing SKILL.md', async () => {

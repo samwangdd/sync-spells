@@ -89,6 +89,8 @@ Profiles still exist as the backward-compatible storage format for presets.
 - `spells skill list [--category]` - List Library skills
 - `spells skill add <path>` - Add skill to the Library
 - `spells skill new <name>` - Create a new skill
+- `spells skill eval audit` - Audit changed-skill eval verification
+- `spells skill eval run <skill>` - Run isolated baseline/current evals; see [skill evals](docs/skill-evals.md)
 - `profiles/global.json` - Add a skill to the minimal global profile with an explicit `extras` entry
 - `spells skill localize <skill> --to <category>` - Move a global skill back to `knowledge`, `coding`, `workflow`, or `inbox`
 - `spells bind [list|add|remove]` - Manage directory-tree defaults for presets

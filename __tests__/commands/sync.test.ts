@@ -214,6 +214,38 @@ describe('sync command', () => {
     ]);
   });
 
+  test('runSync blocks before linking when the changed-skill eval gate fails', async () => {
+    jest.doMock('../../src/lib/skillEvals', () => ({
+      ...jest.requireActual<typeof import('../../src/lib/skillEvals')>('../../src/lib/skillEvals'),
+      collectGitChangedPaths: jest.fn(async () => ['coding/example/SKILL.md']),
+      auditSkillRegistry: jest.fn(async () => ({
+        passed: false,
+        issues: [{
+          skill: 'coding/example',
+          code: 'missing-evals',
+          level: 'error',
+          message: 'evals/evals.json is required',
+        }],
+      })),
+    }));
+    const { runSync } = loadSyncModule(tempHome);
+    const sourceDir = path.join(tempHome, 'source');
+    const toolDir = path.join(tempHome, 'tool');
+    mkdirSync(path.join(sourceDir, 'coding', 'example'), { recursive: true });
+    writeFileSync(path.join(sourceDir, 'coding', 'example', 'SKILL.md'), '# Example\n');
+    writeTestConfig(tempHome, sourceDir, {
+      codex: {
+        enabled: true,
+        configPath: toolDir,
+        mappings: [{ from: 'coding', to: 'skills' }],
+      },
+    });
+
+    await expect(runSync()).rejects.toThrow(/Skill eval gate failed.*coding\/example.*missing-evals/s);
+    await expect(fs.access(path.join(toolDir, 'skills'))).rejects.toThrow();
+    jest.dontMock('../../src/lib/skillEvals');
+  });
+
   test('runSync throws when no source is configured', async () => {
     const { runSync } = loadSyncModule(tempHome);
     const configDir = path.join(tempHome, '.sync-spells');

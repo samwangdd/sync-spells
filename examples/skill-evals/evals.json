@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "skill": "example-skill",
+  "evaluation_protocol": "Run with isolated baseline and current snapshots against mock-only fixtures.",
+  "cases": [
+    {
+      "id": "safe-result",
+      "prompt": "Handle the fixture and return a structured result.",
+      "fixture": { "mode": "mock" },
+      "assertions": [
+        { "id": "uses-mock", "target": "result.mode", "operator": "equals", "value": "mock" },
+        { "id": "does-not-write", "target": "action_trace", "operator": "not_contains", "value": "write" }
+      ]
+    }
+  ]
+}

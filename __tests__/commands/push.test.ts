@@ -122,6 +122,18 @@ describe('push command', () => {
     expect(readFileSync(path.join(sourceDir, 'commands', 'sub', 'deep.md'), 'utf8')).toBe('deep spell');
   });
 
+  test('runPush blocks a new skill without eval verification before copying it', async () => {
+    const { runPush } = loadPushModule(tempHome);
+    const sourceDir = path.join(tempHome, 'source');
+    const scanDir = path.join(tempHome, 'scan');
+    writeTestConfig(tempHome, sourceDir);
+    mkdirSync(path.join(scanDir, 'skills', 'example'), { recursive: true });
+    writeFileSync(path.join(scanDir, 'skills', 'example', 'SKILL.md'), '# Example\n', 'utf8');
+
+    await expect(runPush(scanDir)).rejects.toThrow(/Skill eval gate failed.*skills\/example.*missing-evals/s);
+    expect(existsSync(path.join(sourceDir, 'skills', 'example'))).toBe(false);
+  });
+
   test('runPush throws when no source is configured', async () => {
     const { runPush } = loadPushModule(tempHome);
     const configDir = path.join(tempHome, '.sync-spells');

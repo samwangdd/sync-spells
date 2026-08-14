@@ -280,6 +280,17 @@ export class SkillService {
       await fs.writeFile(skillMdPath, template, 'utf8');
     }
 
+    const evalsPath = path.join(skillPath, 'evals', 'evals.json');
+    if (!(await this.fileExists(evalsPath))) {
+      await fs.mkdir(path.dirname(evalsPath), { recursive: true });
+      await fs.writeFile(evalsPath, `${JSON.stringify({
+        schema_version: 1,
+        skill: name,
+        evaluation_protocol: 'Run with isolated baseline and current skill snapshots.',
+        cases: [],
+      }, null, 2)}\n`, 'utf8');
+    }
+
     return skillPath;
   }
 

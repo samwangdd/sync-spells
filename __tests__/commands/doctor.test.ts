@@ -51,6 +51,21 @@ describe('doctor command', () => {
     expect(profilesCheck!.status).toBe('warn');
   });
 
+  it('should report legacy skills without evals as a health warning', async () => {
+    await fs.mkdir(path.join(testDir, 'coding', 'legacy-skill'), { recursive: true });
+    await fs.writeFile(path.join(testDir, 'coding', 'legacy-skill', 'SKILL.md'), '# Legacy\n');
+
+    const results = await runDoctor(config);
+
+    expect(results).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        check: 'skill-evals',
+        status: 'warn',
+        message: expect.stringContaining('1 warning'),
+      }),
+    ]));
+  });
+
   it('should pass when everything is set up', async () => {
     // Setup profiles
     await fs.mkdir(path.join(testDir, 'profiles'), { recursive: true });

@@ -5,6 +5,7 @@ import { Config, readConfig, expandHome } from '../lib/config';
 import { checkSymlinkState, createSymlink, removeSymlink } from '../lib/symlink';
 import { backupPath } from '../lib/backup';
 import { ProjectActivationResult } from '../types';
+import { assertSkillEvalGate, auditSkillRegistry, collectGitChangedPaths } from '../lib/skillEvals';
 import { runAgentSync } from './sync-agents';
 import { runGuidanceSync } from './sync-guidance';
 import { runGlobalSync } from './sync-global';
@@ -24,6 +25,9 @@ export const runSync = async (): Promise<SyncResult[]> => {
   }
 
   const sourceDir = expandHome(config.source);
+  const changedPaths = await collectGitChangedPaths(sourceDir, 'HEAD^');
+  const gate = await auditSkillRegistry(sourceDir, { changedPaths });
+  assertSkillEvalGate(gate);
   const results: SyncResult[] = [];
 
   for (const [toolKey, toolConfig] of Object.entries(config.tools)) {

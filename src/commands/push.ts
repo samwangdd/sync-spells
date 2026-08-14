@@ -2,6 +2,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { Command } from 'commander';
 import { readConfig, expandHome } from '../lib/config';
+import { assertSkillEvalGate, auditSkillRegistry } from '../lib/skillEvals';
 
 interface PushResult {
   copied: number;
@@ -26,6 +27,8 @@ export const runPush = async (scanDir: string): Promise<PushResult> => {
   }
 
   const sourceDir = expandHome(config.source);
+  const gate = await auditSkillRegistry(scanDir, { changedPaths: [], enforceAll: true });
+  assertSkillEvalGate(gate);
   const subDirs = collectSubDirs(config.tools);
   const result: PushResult = { copied: 0, skipped: 0, skippedFiles: [] };
 
