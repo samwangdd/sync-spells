@@ -51,6 +51,25 @@ export const isBrokenLink = async (linkPath: string): Promise<boolean> => {
   }
 };
 
+/** True when the entry is a symlink whose target no longer exists. Unlike `isBrokenLink`, this
+ * confirms the entry really is a symlink first, so it is safe to call on an arbitrary directory
+ * entry — a plain file or real directory answers false rather than being judged by stat alone.
+ *
+ * Prune uses this to reclaim links `isOwnedLink` can never claim: once the registry root is
+ * renamed, links written under the old root resolve outside the current sourceRoot, so ownership
+ * by path is unanswerable. A dangling link in a tool's skills dir is dead weight either way. */
+export const isDanglingSymlink = async (entryPath: string): Promise<boolean> => {
+  try {
+    const st = await fs.lstat(entryPath);
+    if (!st.isSymbolicLink()) {
+      return false;
+    }
+  } catch {
+    return false;
+  }
+  return isBrokenLink(entryPath);
+};
+
 /** A same-directory sibling path to build a replacement at before swapping it into place.
  * Same directory guarantees the eventual `rename` is on the same filesystem (required for
  * `rename` to be atomic rather than falling back to a copy). */
@@ -272,7 +291,7 @@ export const mergeGlobalSkills = async (
     }
   }
 
-  // Prune owned links no longer desired.
+  // Prune links no longer desired.
   let entries: string[] = [];
   try {
     entries = await fs.readdir(targetDir);
@@ -284,7 +303,7 @@ export const mergeGlobalSkills = async (
       continue;
     }
     const link = path.join(targetDir, entry);
-    if (await isOwnedLink(link, sourceRoot)) {
+    if ((await isOwnedLink(link, sourceRoot)) || (await isDanglingSymlink(link))) {
       await fs.unlink(link);
       results.push({ tool: toolKey, skill: entry, action: 'pruned' });
     }

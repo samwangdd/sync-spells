@@ -166,6 +166,18 @@ describe('mergeGlobalSkills', () => {
     await expect(lstat(path.join(targetDir, 'evolution'))).rejects.toThrow();
   });
 
+  test('prunes a dangling link stranded by a renamed registry root', async () => {
+    // A link created while the registry lived at a different path. After the rename the target
+    // is gone, so it resolves outside the current sourceRoot and isOwnedLink can never claim it —
+    // yet it is dead weight and must not survive a sync.
+    const targetDir = path.join(home, 'claude', 'skills');
+    await mkdir(targetDir, { recursive: true });
+    await symlink(path.join(home, 'old-registry', 'foundation', 'socratic'), path.join(targetDir, 'socratic'));
+    const results = await mergeGlobalSkills(cfg(), 'claude-code', targetDir, desiredFor(['picky']));
+    expect(results).toContainEqual({ tool: 'claude-code', skill: 'socratic', action: 'pruned' });
+    await expect(lstat(path.join(targetDir, 'socratic'))).rejects.toThrow();
+  });
+
   test('converts a chain symlink target dir into a real dir (backs up first)', async () => {
     const realClaude = path.join(home, 'claude', 'skills');
     await mkdir(realClaude, { recursive: true });
