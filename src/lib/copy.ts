@@ -6,8 +6,22 @@ export const MANIFEST_NAME = '.sync-spells-manifest.json';
 
 export interface CopyManifest {
   version: 1;
+  /** Copy-mode entries: a real copy we own, keyed by skill name, with its source content hash. */
   entries: Record<string, { hash: string }>;
+  /** Symlink-mode entries: a link we created, with the target we wrote. Ownership by path
+   * (`isOwnedLink`) stops working the moment the registry root moves, because the recorded target
+   * no longer sits inside the configured source. Recording what we wrote keeps those links
+   * reclaimable — and, just as importantly, keeps links we did NOT write off limits. */
+  links?: Record<string, { target: string }>;
 }
+
+const isStringKeyedRecord = (value: unknown, field: string): boolean =>
+  typeof value === 'object' &&
+  value !== null &&
+  !Array.isArray(value) &&
+  Object.values(value).every(
+    (e) => typeof e === 'object' && e !== null && typeof (e as Record<string, unknown>)[field] === 'string',
+  );
 
 const isCopyManifest = (value: unknown): value is CopyManifest => {
   if (typeof value !== 'object' || value === null) {
@@ -16,12 +30,8 @@ const isCopyManifest = (value: unknown): value is CopyManifest => {
   const manifest = value as Partial<CopyManifest>;
   return (
     manifest.version === 1 &&
-    typeof manifest.entries === 'object' &&
-    manifest.entries !== null &&
-    !Array.isArray(manifest.entries) &&
-    Object.values(manifest.entries).every(
-      (e) => typeof e === 'object' && e !== null && typeof (e as { hash?: unknown }).hash === 'string',
-    )
+    isStringKeyedRecord(manifest.entries, 'hash') &&
+    (manifest.links === undefined || isStringKeyedRecord(manifest.links, 'target'))
   );
 };
 

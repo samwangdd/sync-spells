@@ -249,6 +249,9 @@ export const mergeGlobalSkills = async (
   }
 
   const desiredNames = new Set(desired.map((d) => d.name));
+  const manifest = await readCopyManifest(targetDir);
+  const recordedLinks = manifest.links ?? {};
+  const nextLinks: Record<string, { target: string }> = {};
 
   for (const { name, sourcePath } of desired) {
     const link = path.join(targetDir, name);
@@ -269,16 +272,19 @@ export const mergeGlobalSkills = async (
 
     if (!st) {
       await fs.symlink(sourcePath, link);
+      nextLinks[name] = { target: sourcePath };
       results.push({ tool: toolKey, skill: name, action: 'linked' });
     } else if (st.isSymbolicLink()) {
       const current = await fs.readlink(link);
       if (current === sourcePath) {
+        nextLinks[name] = { target: sourcePath };
         results.push({ tool: toolKey, skill: name, action: 'skipped' });
       } else if (await isOwnedLink(link, sourceRoot) || await isBrokenLink(link)) {
         // Owned (points inside the current sourceRoot) OR dangling (e.g. a leftover link from
         // before the registry root was renamed) — either way it's safe and desired to heal.
         try {
           await replaceSymlinkAtomically(sourcePath, link);
+          nextLinks[name] = { target: sourcePath };
           results.push({ tool: toolKey, skill: name, action: 'updated' });
         } catch (err) {
           results.push({ tool: toolKey, skill: name, action: 'error', error: `heal failed, original preserved: ${err}` });
@@ -299,16 +305,21 @@ export const mergeGlobalSkills = async (
     entries = [];
   }
   for (const entry of entries) {
-    if (desiredNames.has(entry)) {
+    if (entry === MANIFEST_NAME || desiredNames.has(entry)) {
       continue;
     }
     const link = path.join(targetDir, entry);
-    if ((await isOwnedLink(link, sourceRoot)) || (await isDanglingSymlink(link))) {
+    const recorded = recordedLinks[entry];
+    const isRecordedByUs =
+      recorded !== undefined && (await fs.readlink(link).catch(() => null)) === recorded.target;
+
+    if ((await isOwnedLink(link, sourceRoot)) || (await isDanglingSymlink(link)) || isRecordedByUs) {
       await fs.unlink(link);
       results.push({ tool: toolKey, skill: entry, action: 'pruned' });
     }
   }
 
+  await writeCopyManifest(targetDir, { ...manifest, links: nextLinks });
   return results;
 };
 
