@@ -214,7 +214,7 @@ describe('sync command', () => {
     ]);
   });
 
-  test('runSync blocks before linking when the changed-skill eval gate fails', async () => {
+  test('runSync links normally when skills fail the eval gate', async () => {
     jest.doMock('../../src/lib/skillEvals', () => ({
       ...jest.requireActual<typeof import('../../src/lib/skillEvals')>('../../src/lib/skillEvals'),
       collectGitChangedPaths: jest.fn(async () => ['coding/example/SKILL.md']),
@@ -241,8 +241,74 @@ describe('sync command', () => {
       },
     });
 
-    await expect(runSync()).rejects.toThrow(/Skill eval gate failed.*coding\/example.*missing-evals/s);
-    await expect(fs.access(path.join(toolDir, 'skills'))).rejects.toThrow();
+    await expect(runSync()).resolves.toEqual([
+      { tool: 'codex', from: 'coding', to: 'skills', action: 'linked' },
+    ]);
+    await expect(fs.readlink(path.join(toolDir, 'skills')))
+      .resolves.toBe(path.join(sourceDir, 'coding'));
+    jest.dontMock('../../src/lib/skillEvals');
+  });
+
+  test('auditSyncSkillEvals reports every eval issue as a non-fatal warning', async () => {
+    jest.doMock('../../src/lib/skillEvals', () => ({
+      ...jest.requireActual<typeof import('../../src/lib/skillEvals')>('../../src/lib/skillEvals'),
+      collectGitChangedPaths: jest.fn(async () => ['coding/example/SKILL.md']),
+      auditSkillRegistry: jest.fn(async () => ({
+        passed: false,
+        issues: [
+          { skill: 'coding/example', code: 'missing-evals', level: 'error', message: 'required' },
+          { skill: 'coding/legacy', code: 'missing-evals', level: 'warning', message: 'required' },
+        ],
+      })),
+    }));
+    const { auditSyncSkillEvals } = loadSyncModule(tempHome);
+
+    await expect(auditSyncSkillEvals(path.join(tempHome, 'source'))).resolves.toEqual([
+      expect.objectContaining({ skill: 'coding/example', code: 'missing-evals' }),
+      expect.objectContaining({ skill: 'coding/legacy', code: 'missing-evals' }),
+    ]);
+    jest.dontMock('../../src/lib/skillEvals');
+  });
+
+  test('registerSync action prints eval warnings and still completes', async () => {
+    jest.doMock('../../src/lib/skillEvals', () => ({
+      ...jest.requireActual<typeof import('../../src/lib/skillEvals')>('../../src/lib/skillEvals'),
+      collectGitChangedPaths: jest.fn(async () => ['coding/example/SKILL.md']),
+      auditSkillRegistry: jest.fn(async () => ({
+        passed: false,
+        issues: [{
+          skill: 'coding/example',
+          code: 'missing-evals',
+          level: 'error',
+          message: 'evals/evals.json is required',
+        }],
+      })),
+    }));
+    const { registerSync } = loadSyncModule(tempHome);
+    const sourceDir = path.join(tempHome, 'source');
+    const toolDir = path.join(tempHome, 'tool');
+    mkdirSync(path.join(sourceDir, 'coding', 'example'), { recursive: true });
+    writeFileSync(path.join(sourceDir, 'coding', 'example', 'SKILL.md'), '# Example\n');
+    writeTestConfig(tempHome, sourceDir, {
+      codex: { enabled: true, configPath: toolDir, mappings: [{ from: 'coding', to: 'skills' }] },
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { Command } = require('commander') as typeof import('commander');
+    const program = new Command();
+    registerSync(program);
+    const logs: string[] = [];
+    const logSpy = jest.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
+      logs.push(args.join(' '));
+    });
+
+    await program.parseAsync(['node', 'spells', 'sync']);
+    logSpy.mockRestore();
+
+    expect(logs.join('\n')).toMatch(/Skill evals: 1 warning\(s\)/);
+    expect(logs.join('\n')).toMatch(/coding\/example: missing-evals/);
+    await expect(fs.readlink(path.join(toolDir, 'skills')))
+      .resolves.toBe(path.join(sourceDir, 'coding'));
     jest.dontMock('../../src/lib/skillEvals');
   });
 

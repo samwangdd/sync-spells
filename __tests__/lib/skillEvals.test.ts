@@ -394,6 +394,84 @@ describe('skill eval suites', () => {
     expect(report.passed).toBe(false);
   });
 
+  test('exempts vendored skills recorded in skills-lock.json', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'skill-evals-vendored-'));
+    tempDirs.push(root);
+    const vendored = path.join(root, 'agent', 'skills', 'lark-doc');
+    const owned = path.join(root, 'skills', 'agent-reach');
+    await mkdir(vendored, { recursive: true });
+    await mkdir(owned, { recursive: true });
+    await writeFile(path.join(vendored, 'SKILL.md'), '# Vendored\n');
+    await writeFile(path.join(owned, 'SKILL.md'), '# Owned\n');
+    await writeFile(path.join(root, 'skills-lock.json'), JSON.stringify({
+      version: 1,
+      skills: {
+        'lark-doc': {
+          source: 'larksuite/cli',
+          sourceType: 'github',
+          skillPath: 'skills/lark-doc/SKILL.md',
+          computedHash: 'a'.repeat(64),
+        },
+      },
+    }));
+
+    const report = await auditSkillRegistry(root, {
+      changedPaths: [
+        path.join('agent', 'skills', 'lark-doc', 'SKILL.md'),
+        path.join('skills', 'agent-reach', 'SKILL.md'),
+      ],
+    });
+
+    expect(report.issues.some((issue) => issue.skill.includes('lark-doc'))).toBe(false);
+    expect(report.issues).toEqual([
+      expect.objectContaining({ skill: 'skills/agent-reach', code: 'missing-evals', level: 'error' }),
+    ]);
+  });
+
+  test('exempts archived skills from the eval gate', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'skill-evals-archive-'));
+    tempDirs.push(root);
+    const archived = path.join(root, 'archive', 'workflow', 'retired-skill');
+    await mkdir(archived, { recursive: true });
+    await writeFile(path.join(archived, 'SKILL.md'), '# Retired\n');
+
+    const report = await auditSkillRegistry(root, {
+      changedPaths: [path.join('archive', 'workflow', 'retired-skill', 'SKILL.md')],
+    });
+
+    expect(report.issues).toEqual([]);
+    expect(report.passed).toBe(true);
+  });
+
+  test('enforces only for changed paths that the skill digest actually covers', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'skill-evals-noise-'));
+    tempDirs.push(root);
+    const skillDir = path.join(root, 'coding', 'noisy-skill');
+    await mkdir(skillDir, { recursive: true });
+    await writeFile(path.join(skillDir, 'SKILL.md'), '# Noisy\n');
+
+    const noiseOnly = await auditSkillRegistry(root, {
+      changedPaths: [
+        path.join('coding', 'noisy-skill', 'log.md'),
+        path.join('coding', 'noisy-skill', 'SKILL.md.bak.20260807-114937'),
+        path.join('coding', 'noisy-skill', 'scripts', '__pycache__', 'helper.cpython-313.pyc'),
+        path.join('coding', 'noisy-skill', 'evals', 'verification.json'),
+        path.join('coding', 'noisy-skill', '.DS_Store'),
+      ],
+    });
+    expect(noiseOnly.issues).toEqual([
+      expect.objectContaining({ code: 'missing-evals', level: 'warning' }),
+    ]);
+    expect(noiseOnly.passed).toBe(true);
+
+    const behaviorChange = await auditSkillRegistry(root, {
+      changedPaths: [path.join('coding', 'noisy-skill', 'SKILL.md')],
+    });
+    expect(behaviorChange.issues).toEqual([
+      expect.objectContaining({ code: 'missing-evals', level: 'error' }),
+    ]);
+  });
+
   test('collects tracked and untracked registry changes relative to a Git baseline', async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), 'skill-evals-git-'));
     tempDirs.push(root);
