@@ -279,9 +279,15 @@ export const mergeGlobalSkills = async (
       if (current === sourcePath) {
         nextLinks[name] = { target: sourcePath };
         results.push({ tool: toolKey, skill: name, action: 'skipped' });
-      } else if (await isOwnedLink(link, sourceRoot) || await isBrokenLink(link)) {
-        // Owned (points inside the current sourceRoot) OR dangling (e.g. a leftover link from
-        // before the registry root was renamed) — either way it's safe and desired to heal.
+      } else if (
+        (await isOwnedLink(link, sourceRoot)) ||
+        (await isBrokenLink(link)) ||
+        recordedLinks[name]?.target === current
+      ) {
+        // Owned (points inside the current sourceRoot), dangling (a leftover from before the
+        // registry root was renamed), or still pointing exactly where we last put it — all three
+        // are ours to heal. The last case is what survives a registry move with the old path
+        // intact, which the first two cannot recognise.
         try {
           await replaceSymlinkAtomically(sourcePath, link);
           nextLinks[name] = { target: sourcePath };

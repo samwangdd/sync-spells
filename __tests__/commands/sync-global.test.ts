@@ -195,6 +195,24 @@ describe('mergeGlobalSkills', () => {
     await expect(lstat(path.join(targetDir, 'socratic'))).rejects.toThrow();
   });
 
+  test('repoints a recorded link at the new registry instead of reporting it foreign', async () => {
+    // The desired-name counterpart of the prune case: after a registry move the old link is alive
+    // and outside the new root, so ownership by path fails and it used to be refused as foreign,
+    // leaving the tool pointed at the stale registry. The manifest says we wrote it, so heal it.
+    const targetDir = path.join(home, 'claude', 'skills');
+    await mergeGlobalSkills(cfg(), 'claude-code', targetDir, desiredFor(['picky']));
+
+    const movedRoot = path.join(home, 'moved-registry');
+    const movedPicky = path.join(movedRoot, 'foundation', 'picky');
+    await mkdir(movedPicky, { recursive: true });
+    const results = await mergeGlobalSkills({ source: movedRoot, tools: {} }, 'claude-code', targetDir, [
+      { name: 'picky', sourcePath: movedPicky },
+    ]);
+
+    expect(results).toContainEqual({ tool: 'claude-code', skill: 'picky', action: 'updated' });
+    expect(await readlink(path.join(targetDir, 'picky'))).toBe(movedPicky);
+  });
+
   test('leaves a live foreign link alone even after the registry moves', async () => {
     // Same shape as above — outside the current root, target alive — but never recorded by us.
     // The manifest is what separates the two; a user's own link must survive.
