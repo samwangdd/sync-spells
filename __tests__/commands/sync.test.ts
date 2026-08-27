@@ -214,7 +214,7 @@ describe('sync command', () => {
     ]);
   });
 
-  test('runSync blocks before linking when the changed-skill eval gate fails', async () => {
+  test('runSync warns but continues when the changed-skill eval gate fails', async () => {
     jest.doMock('../../src/lib/skillEvals', () => ({
       ...jest.requireActual<typeof import('../../src/lib/skillEvals')>('../../src/lib/skillEvals'),
       collectGitChangedPaths: jest.fn(async () => ['coding/example/SKILL.md']),
@@ -241,8 +241,11 @@ describe('sync command', () => {
       },
     });
 
-    await expect(runSync()).rejects.toThrow(/Skill eval gate failed.*coding\/example.*missing-evals/s);
-    await expect(fs.access(path.join(toolDir, 'skills'))).rejects.toThrow();
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const results = await runSync();
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('coding/example: missing-evals'));
+    expect(results.some((r) => r.tool === 'codex' && r.action === 'linked')).toBe(true);
+    warnSpy.mockRestore();
     jest.dontMock('../../src/lib/skillEvals');
   });
 
