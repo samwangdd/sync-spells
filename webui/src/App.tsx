@@ -7,6 +7,7 @@ import { Sidebar } from './components/Sidebar';
 import { isSearchShortcut } from './searchShortcut';
 import { nextTheme, THEME_STORAGE_KEY, type Theme } from './theme';
 import { buildCatalogUrlState, parseCatalogUrlState, resolveCategoryFromQuery, type QueryTab } from './urlState';
+import { applyTabChange } from './tabSwitch';
 
 type Tab = QueryTab;
 
@@ -25,6 +26,12 @@ export const App: React.FC = () => {
   const [search, setSearch] = useState('');
   const [theme, setTheme] = useState<Theme>(currentTheme);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const changeTab = (nextTab: Tab) => {
+    const next = applyTabChange({ tab, search }, nextTab);
+    setTab(next.tab);
+    setSearch(next.search);
+  };
 
   const toggleTheme = () => {
     const next = nextTheme(theme);
@@ -59,7 +66,7 @@ export const App: React.FC = () => {
     <div className="flex h-screen overflow-hidden">
       <Sidebar
         tab={tab}
-        onTab={setTab}
+        onTab={changeTab}
         profileCount={state?.profiles.length ?? 0}
         skillCount={state?.skills.length ?? 0}
         theme={theme}

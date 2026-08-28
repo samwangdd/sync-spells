@@ -28,6 +28,8 @@
   --scrim: rgba(0, 0, 0, .24);
   --danger: #d70015;
   --danger-soft: #fff0f0;
+  /* 实心 danger 底色上的前景色：亮色主题的红较深，用白字；暗色主题见下方覆盖 */
+  --danger-fg: #ffffff;
   --warning: #9a6700;
   --warning-soft: #fff8e6;
 }
@@ -51,6 +53,8 @@
   --scrim: rgba(0, 0, 0, .56);
   --danger: #ff6961;
   --danger-soft: rgba(255, 105, 97, .16);
+  /* 暗色主题的 danger 是浅红，白字对比度不足，改用近黑前景 */
+  --danger-fg: #1c1c1e;
   --warning: #ffd60a;
   --warning-soft: rgba(255, 214, 10, .16);
 }
