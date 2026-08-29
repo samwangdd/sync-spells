@@ -51,6 +51,25 @@ export const isBrokenLink = async (linkPath: string): Promise<boolean> => {
   }
 };
 
+/** True when the entry is a symlink whose target no longer exists. Unlike `isBrokenLink`, this
+ * confirms the entry really is a symlink first, so it is safe to call on an arbitrary directory
+ * entry — a plain file or real directory answers false rather than being judged by stat alone.
+ *
+ * Prune uses this to reclaim links `isOwnedLink` can never claim: once the registry root is
+ * renamed, links written under the old root resolve outside the current sourceRoot, so ownership
+ * by path is unanswerable. A dangling link in a tool's skills dir is dead weight either way. */
+export const isDanglingSymlink = async (entryPath: string): Promise<boolean> => {
+  try {
+    const st = await fs.lstat(entryPath);
+    if (!st.isSymbolicLink()) {
+      return false;
+    }
+  } catch {
+    return false;
+  }
+  return isBrokenLink(entryPath);
+};
+
 /** A same-directory sibling path to build a replacement at before swapping it into place.
  * Same directory guarantees the eventual `rename` is on the same filesystem (required for
  * `rename` to be atomic rather than falling back to a copy). */
@@ -230,6 +249,9 @@ export const mergeGlobalSkills = async (
   }
 
   const desiredNames = new Set(desired.map((d) => d.name));
+  const manifest = await readCopyManifest(targetDir);
+  const recordedLinks = manifest.links ?? {};
+  const nextLinks: Record<string, { target: string }> = {};
 
   for (const { name, sourcePath } of desired) {
     const link = path.join(targetDir, name);
@@ -250,16 +272,25 @@ export const mergeGlobalSkills = async (
 
     if (!st) {
       await fs.symlink(sourcePath, link);
+      nextLinks[name] = { target: sourcePath };
       results.push({ tool: toolKey, skill: name, action: 'linked' });
     } else if (st.isSymbolicLink()) {
       const current = await fs.readlink(link);
       if (current === sourcePath) {
+        nextLinks[name] = { target: sourcePath };
         results.push({ tool: toolKey, skill: name, action: 'skipped' });
-      } else if (await isOwnedLink(link, sourceRoot) || await isBrokenLink(link)) {
-        // Owned (points inside the current sourceRoot) OR dangling (e.g. a leftover link from
-        // before the registry root was renamed) — either way it's safe and desired to heal.
+      } else if (
+        (await isOwnedLink(link, sourceRoot)) ||
+        (await isBrokenLink(link)) ||
+        recordedLinks[name]?.target === current
+      ) {
+        // Owned (points inside the current sourceRoot), dangling (a leftover from before the
+        // registry root was renamed), or still pointing exactly where we last put it — all three
+        // are ours to heal. The last case is what survives a registry move with the old path
+        // intact, which the first two cannot recognise.
         try {
           await replaceSymlinkAtomically(sourcePath, link);
+          nextLinks[name] = { target: sourcePath };
           results.push({ tool: toolKey, skill: name, action: 'updated' });
         } catch (err) {
           results.push({ tool: toolKey, skill: name, action: 'error', error: `heal failed, original preserved: ${err}` });
@@ -272,7 +303,7 @@ export const mergeGlobalSkills = async (
     }
   }
 
-  // Prune owned links no longer desired.
+  // Prune links no longer desired.
   let entries: string[] = [];
   try {
     entries = await fs.readdir(targetDir);
@@ -280,16 +311,21 @@ export const mergeGlobalSkills = async (
     entries = [];
   }
   for (const entry of entries) {
-    if (desiredNames.has(entry)) {
+    if (entry === MANIFEST_NAME || desiredNames.has(entry)) {
       continue;
     }
     const link = path.join(targetDir, entry);
-    if (await isOwnedLink(link, sourceRoot)) {
+    const recorded = recordedLinks[entry];
+    const isRecordedByUs =
+      recorded !== undefined && (await fs.readlink(link).catch(() => null)) === recorded.target;
+
+    if ((await isOwnedLink(link, sourceRoot)) || (await isDanglingSymlink(link)) || isRecordedByUs) {
       await fs.unlink(link);
       results.push({ tool: toolKey, skill: entry, action: 'pruned' });
     }
   }
 
+  await writeCopyManifest(targetDir, { ...manifest, links: nextLinks });
   return results;
 };
 

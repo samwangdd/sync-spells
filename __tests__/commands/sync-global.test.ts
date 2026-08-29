@@ -166,6 +166,76 @@ describe('mergeGlobalSkills', () => {
     await expect(lstat(path.join(targetDir, 'evolution'))).rejects.toThrow();
   });
 
+  test('prunes a dangling link stranded by a renamed registry root', async () => {
+    // A link created while the registry lived at a different path. After the rename the target
+    // is gone, so it resolves outside the current sourceRoot and isOwnedLink can never claim it —
+    // yet it is dead weight and must not survive a sync.
+    const targetDir = path.join(home, 'claude', 'skills');
+    await mkdir(targetDir, { recursive: true });
+    await symlink(path.join(home, 'old-registry', 'foundation', 'socratic'), path.join(targetDir, 'socratic'));
+    const results = await mergeGlobalSkills(cfg(), 'claude-code', targetDir, desiredFor(['picky']));
+    expect(results).toContainEqual({ tool: 'claude-code', skill: 'socratic', action: 'pruned' });
+    await expect(lstat(path.join(targetDir, 'socratic'))).rejects.toThrow();
+  });
+
+  test('prunes a recorded link that now points outside the registry but is still alive', async () => {
+    // The registry moved and the old location survived (a leftover copy, a still-mounted volume).
+    // Such a link is neither owned-by-path nor dangling, so only the manifest can identify it as
+    // ours. Without it the entry would sit in the tool's skills dir forever.
+    const targetDir = path.join(home, 'claude', 'skills');
+    await mergeGlobalSkills(cfg(), 'claude-code', targetDir, desiredFor(['picky', 'socratic']));
+
+    const movedRoot = path.join(home, 'moved-registry');
+    await mkdir(path.join(movedRoot, 'foundation', 'picky'), { recursive: true });
+    const results = await mergeGlobalSkills({ source: movedRoot, tools: {} }, 'claude-code', targetDir, [
+      { name: 'picky', sourcePath: path.join(movedRoot, 'foundation', 'picky') },
+    ]);
+
+    expect(results).toContainEqual({ tool: 'claude-code', skill: 'socratic', action: 'pruned' });
+    await expect(lstat(path.join(targetDir, 'socratic'))).rejects.toThrow();
+  });
+
+  test('repoints a recorded link at the new registry instead of reporting it foreign', async () => {
+    // The desired-name counterpart of the prune case: after a registry move the old link is alive
+    // and outside the new root, so ownership by path fails and it used to be refused as foreign,
+    // leaving the tool pointed at the stale registry. The manifest says we wrote it, so heal it.
+    const targetDir = path.join(home, 'claude', 'skills');
+    await mergeGlobalSkills(cfg(), 'claude-code', targetDir, desiredFor(['picky']));
+
+    const movedRoot = path.join(home, 'moved-registry');
+    const movedPicky = path.join(movedRoot, 'foundation', 'picky');
+    await mkdir(movedPicky, { recursive: true });
+    const results = await mergeGlobalSkills({ source: movedRoot, tools: {} }, 'claude-code', targetDir, [
+      { name: 'picky', sourcePath: movedPicky },
+    ]);
+
+    expect(results).toContainEqual({ tool: 'claude-code', skill: 'picky', action: 'updated' });
+    expect(await readlink(path.join(targetDir, 'picky'))).toBe(movedPicky);
+  });
+
+  test('leaves a live foreign link alone even after the registry moves', async () => {
+    // Same shape as above — outside the current root, target alive — but never recorded by us.
+    // The manifest is what separates the two; a user's own link must survive.
+    const targetDir = path.join(home, 'claude', 'skills');
+    await mkdir(targetDir, { recursive: true });
+    const outside = path.join(home, 'outside');
+    await mkdir(outside, { recursive: true });
+    await symlink(outside, path.join(targetDir, 'user-link'));
+
+    const results = await mergeGlobalSkills(cfg(), 'claude-code', targetDir, desiredFor(['picky']));
+
+    expect(results.find((r) => r.skill === 'user-link')).toBeUndefined();
+    expect((await lstat(path.join(targetDir, 'user-link'))).isSymbolicLink()).toBe(true);
+  });
+
+  test('never treats its own manifest as a skill or prunes it (symlink mode)', async () => {
+    const targetDir = path.join(home, 'claude', 'skills');
+    await mergeGlobalSkills(cfg(), 'claude-code', targetDir, desiredFor(['picky']));
+    const results = await mergeGlobalSkills(cfg(), 'claude-code', targetDir, desiredFor(['picky']));
+    expect(results.find((r) => r.skill === MANIFEST_NAME)).toBeUndefined();
+    await expect(lstat(path.join(targetDir, MANIFEST_NAME))).resolves.toBeDefined();
+  });
+
   test('converts a chain symlink target dir into a real dir (backs up first)', async () => {
     const realClaude = path.join(home, 'claude', 'skills');
     await mkdir(realClaude, { recursive: true });

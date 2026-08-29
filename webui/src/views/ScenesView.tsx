@@ -113,46 +113,56 @@ export const ScenesView: React.FC<{
   }
 
   return (
-    <div className="px-[30px] py-6">
-      <div className="mb-4 flex items-center gap-3">
-        <button
-          type="button"
-          onClick={goBack}
-          aria-label="Back"
-          className="cursor-pointer text-[1.05rem] leading-none text-[var(--fg-dim)] hover:text-[var(--accent)]"
+    <div>
+      {/* 未保存提示做成贴顶横幅：编辑区可滚动，行内小徽标滚出视口后用户会看不到脏状态 */}
+      {dirty && (
+        <div
+          role="status"
+          className="sticky top-0 z-30 flex h-6 items-center justify-center bg-[var(--danger)] text-[12px] font-semibold text-[var(--danger-fg)]"
         >
-          ←
-        </button>
-        {isNew ? (
-          <input
-            value={draft.name}
-            onChange={(e) => { setDraft({ ...draft, name: e.target.value }); setDirty(true); }}
-            placeholder="场景名称"
-            className="w-64 rounded-[var(--radius-s)] border border-[var(--border)] bg-[var(--code)] px-3 py-1.5 text-xl font-semibold outline-none focus:border-[var(--accent)]"
-          />
-        ) : (
+          未保存的修改
+        </div>
+      )}
+      <div className="px-[30px] py-6">
+        <div className="mb-4 flex items-center gap-3">
           <button
             type="button"
             onClick={goBack}
-            className="cursor-pointer text-left text-xl font-semibold hover:text-[var(--accent)]"
+            aria-label="Back"
+            className="cursor-pointer text-[1.05rem] leading-none text-[var(--fg-dim)] hover:text-[var(--accent)]"
           >
-            {draft.name}
+            ←
           </button>
-        )}
-        {dirty && <span className="rounded-[var(--radius-s)] bg-[var(--warning-soft)] px-2 py-0.5 text-xs text-[var(--warning)]">未保存</span>}
-        {nameExists && <span className="rounded-[var(--radius-s)] bg-[var(--danger-soft)] px-2 py-0.5 text-xs text-[var(--danger)]">名称已存在</span>}
-        <button onClick={save} disabled={!canSave}
-          className="ml-auto rounded-[var(--radius-s)] bg-[var(--accent)] px-4 py-1.5 text-sm text-[var(--accent-fg)] disabled:opacity-40">
-          {saving ? '保存中…' : '保存'}
-        </button>
-      </div>
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <RecipeEditor
-          categories={draft.categories} extras={draft.extras} excludes={draft.excludes} boundPaths={draft.boundPaths}
-          allCategories={allCategories} allRefs={allRefs}
-          onChange={(patch) => { setDraft({ ...draft, ...patch }); setDirty(true); }}
-        />
-        <ResolvePreview recipe={draft} catalogByCategory={catalogByCategory} />
+          {isNew ? (
+            <input
+              value={draft.name}
+              onChange={(e) => { setDraft({ ...draft, name: e.target.value }); setDirty(true); }}
+              placeholder="场景名称"
+              className="w-64 rounded-[var(--radius-s)] border border-[var(--border)] bg-[var(--code)] px-3 py-1.5 text-xl font-semibold outline-none focus:border-[var(--accent)]"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={goBack}
+              className="cursor-pointer text-left text-xl font-semibold hover:text-[var(--accent)]"
+            >
+              {draft.name}
+            </button>
+          )}
+          {nameExists && <span className="rounded-[var(--radius-s)] bg-[var(--danger-soft)] px-2 py-0.5 text-xs text-[var(--danger)]">名称已存在</span>}
+          <button onClick={save} disabled={!canSave}
+            className="ml-auto rounded-[var(--radius-s)] bg-[var(--accent)] px-4 py-1.5 text-sm text-[var(--accent-fg)] disabled:opacity-40">
+            {saving ? '保存中…' : '保存'}
+          </button>
+        </div>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <RecipeEditor
+            categories={draft.categories} extras={draft.extras} excludes={draft.excludes} boundPaths={draft.boundPaths}
+            allCategories={allCategories} allRefs={allRefs}
+            onChange={(patch) => { setDraft({ ...draft, ...patch }); setDirty(true); }}
+          />
+          <ResolvePreview recipe={draft} catalogByCategory={catalogByCategory} />
+        </div>
       </div>
     </div>
   );
