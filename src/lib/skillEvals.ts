@@ -162,6 +162,21 @@ export const gradeAssertions = (
   return { id: assertion.id, passed, actual };
 });
 
+/**
+ * Whether a skill-relative path contributes to the behavior digest. Generated eval
+ * artifacts, history logs, editor backups, and caches are excluded so that churn in
+ * them neither moves the digest nor marks the skill as changed.
+ */
+const isBehaviorPath = (relative: string): boolean => {
+  const segments = relative.split(path.sep);
+  if (segments[0] === 'evals') return false;
+  return !segments.some((segment) =>
+    segment === 'log.md' ||
+    segment === '.DS_Store' ||
+    segment === '__pycache__' ||
+    segment.includes('.bak.'));
+};
+
 const listBehaviorFiles = async (root: string, relative = ''): Promise<string[]> => {
   const absolute = path.join(root, relative);
   const stat = await fs.stat(absolute);
@@ -170,10 +185,7 @@ const listBehaviorFiles = async (root: string, relative = ''): Promise<string[]>
   const files: string[] = [];
   for (const entry of (await fs.readdir(absolute)).sort()) {
     const child = path.join(relative, entry);
-    if (child === 'evals' || child.startsWith(`evals${path.sep}`)) continue;
-    if (entry === 'log.md' || entry === '.DS_Store' || entry.includes('.bak.') || entry === '__pycache__') {
-      continue;
-    }
+    if (!isBehaviorPath(child)) continue;
     files.push(...await listBehaviorFiles(root, child));
   }
   return files;
@@ -383,9 +395,11 @@ export const auditSkillEval = async (
   return issues;
 };
 
+const EXCLUDED_TREES = ['.system', 'third-party', 'third_party', 'vendor', 'archive'];
+
 const discoverSkillDirs = async (root: string, relative = ''): Promise<string[]> => {
   const segments = relative.split(path.sep);
-  if (segments.some((segment) => ['.system', 'third-party', 'third_party', 'vendor'].includes(segment))) {
+  if (segments.some((segment) => EXCLUDED_TREES.includes(segment))) {
     return [];
   }
   const absolute = path.join(root, relative);
@@ -401,15 +415,51 @@ const discoverSkillDirs = async (root: string, relative = ''): Promise<string[]>
   return skills;
 };
 
+/**
+ * Skill directories installed from an upstream source, read from the registry's
+ * `skills-lock.json`. Lock entries record a `skillPath` relative to the installing
+ * tool's root, so a discovered skill is vendored when its path ends with that entry.
+ */
+const readVendoredSkillDirs = async (root: string): Promise<string[]> => {
+  let raw: string;
+  try {
+    raw = await fs.readFile(path.join(root, 'skills-lock.json'), 'utf8');
+  } catch {
+    return [];
+  }
+  try {
+    const lock = JSON.parse(raw) as { skills?: Record<string, { skillPath?: unknown }> };
+    return Object.values(lock.skills ?? {})
+      .map((entry) => entry?.skillPath)
+      .filter((skillPath): skillPath is string => typeof skillPath === 'string' && skillPath !== '')
+      .map((skillPath) => path.dirname(skillPath.split('/').join(path.sep)));
+  } catch {
+    return [];
+  }
+};
+
+const isVendoredSkill = (skill: string, vendoredDirs: string[]): boolean =>
+  vendoredDirs.some((dir) => skill === dir || skill.endsWith(`${path.sep}${dir}`));
+
+/** Whether a changed path touches behavior the skill digest actually covers. */
+const changesSkillBehavior = (changedPath: string, skill: string): boolean => {
+  if (changedPath === skill) return true;
+  const prefix = `${skill}${path.sep}`;
+  if (!changedPath.startsWith(prefix)) return false;
+  return isBehaviorPath(changedPath.slice(prefix.length));
+};
+
 /** Audits every self-maintained skill, enforcing eval verification only for changed paths. */
 export const auditSkillRegistry = async (
   root: string,
   options: { changedPaths: string[]; enforceAll?: boolean },
 ): Promise<SkillEvalRegistryReport> => {
   const issues: RegistrySkillEvalIssue[] = [];
+  const vendoredDirs = await readVendoredSkillDirs(root);
   for (const skill of await discoverSkillDirs(root)) {
+    if (isVendoredSkill(skill, vendoredDirs)) continue;
     const enforce = options.enforceAll || options.changedPaths.some(
-      (changedPath) => changedPath === skill || changedPath.startsWith(`${skill}${path.sep}`),
+      (changedPath) => changesSkillBehavior(changedPath, skill),
     );
     const skillIssues = await auditSkillEval(path.join(root, skill), { enforce });
     issues.push(...skillIssues.map((issue) => ({ ...issue, skill })));

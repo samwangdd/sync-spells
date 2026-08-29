@@ -31,6 +31,12 @@ The bundled Codex adapter never starts an agent for the empty new-skill baseline
 ## Gate behavior
 
 - `spells skill new` creates an empty suite skeleton that must be completed and run before sync.
-- `spells push` treats every discovered skill as changed and blocks missing, invalid, stale, unsafe, or failed verification.
-- `spells sync` compares the registry with `HEAD^`, includes working-tree and untracked changes, and applies the same blocking rules to changed skills.
-- Untouched historical skills without evals produce warnings only. `.system`, `third-party`, `third_party`, and `vendor` trees are excluded.
+- `spells push` treats every discovered skill as changed and blocks missing, invalid, stale, unsafe, or failed verification. This is the only hard gate: it guards the boundary where skills leave the registry.
+- `spells sync` never blocks. It compares the registry with `HEAD^`, including working-tree and untracked changes, then prints every issue as an advisory warning (first 10, then a count) and proceeds. Sync only refreshes local symlinks, so an unverified skill is worth surfacing but not worth failing on.
+- `spells doctor` and `spells skill eval audit` keep reporting errors and warnings unchanged.
+
+## Scope
+
+A skill counts as changed only when a changed path contributes to its behavior digest. `evals/`, `log.md`, `.DS_Store`, `*.bak.*`, and `__pycache__` are excluded from both the digest and change detection, so churn in them never marks a skill as changed.
+
+These trees are skipped entirely: `.system`, `third-party`, `third_party`, `vendor`, `archive`, and any skill whose path matches a `skillPath` entry in the registry's `skills-lock.json` (skills installed from an upstream source, which the registry does not author).

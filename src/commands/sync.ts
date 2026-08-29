@@ -5,11 +5,14 @@ import { Config, readConfig, expandHome } from '../lib/config';
 import { checkSymlinkState, createSymlink, removeSymlink } from '../lib/symlink';
 import { backupPath } from '../lib/backup';
 import { ProjectActivationResult } from '../types';
-import { auditSkillRegistry, collectGitChangedPaths } from '../lib/skillEvals';
+import { RegistrySkillEvalIssue, auditSkillRegistry, collectGitChangedPaths } from '../lib/skillEvals';
 import { runAgentSync } from './sync-agents';
 import { runGuidanceSync } from './sync-guidance';
 import { runGlobalSync } from './sync-global';
 import { runUse } from './use';
+
+/** Eval warnings are advisory during sync, so only a preview is printed. */
+const EVAL_WARNING_PREVIEW = 10;
 
 interface SyncResult {
   tool: string;
@@ -18,6 +21,19 @@ interface SyncResult {
   action: 'linked' | 'skipped' | 'backed-up' | 're-linked';
 }
 
+/**
+ * Reports skill eval problems without blocking. `sync` only refreshes local symlinks,
+ * so an unverified skill is worth surfacing but never worth failing on; `push` keeps
+ * the hard gate for the boundary where skills actually leave the registry.
+ */
+export const auditSyncSkillEvals = async (
+  sourceDir: string,
+): Promise<RegistrySkillEvalIssue[]> => {
+  const changedPaths = await collectGitChangedPaths(sourceDir, 'HEAD^');
+  const gate = await auditSkillRegistry(sourceDir, { changedPaths });
+  return gate.issues;
+};
+
 export const runSync = async (): Promise<SyncResult[]> => {
   const config = await readConfig();
   if (!config.source) {
@@ -25,15 +41,6 @@ export const runSync = async (): Promise<SyncResult[]> => {
   }
 
   const sourceDir = expandHome(config.source);
-  const changedPaths = await collectGitChangedPaths(sourceDir, 'HEAD^');
-  const gate = await auditSkillRegistry(sourceDir, { changedPaths });
-  if (!gate.passed) {
-    const failures = gate.issues
-      .filter((issue) => issue.level === 'error')
-      .map((issue) => `  ⚠ ${issue.skill}: ${issue.code}`)
-      .join('\n');
-    console.warn(`\nSkill eval gate warnings (non-blocking):\n${failures}\n`);
-  }
   const results: SyncResult[] = [];
 
   for (const [toolKey, toolConfig] of Object.entries(config.tools)) {
@@ -118,6 +125,25 @@ export const registerSync = (program: Command): void => {
       }
       const changed = results.filter((r) => r.action !== 'skipped').length;
       console.log(`\nSkills: ${changed} updated, ${results.length - changed} unchanged.`);
+
+      try {
+        const config = await readConfig();
+        const evalIssues = config.source
+          ? await auditSyncSkillEvals(expandHome(config.source))
+          : [];
+        for (const issue of evalIssues.slice(0, EVAL_WARNING_PREVIEW)) {
+          console.log(`  ! [skill-evals] ${issue.skill}: ${issue.code}`);
+        }
+        if (evalIssues.length > EVAL_WARNING_PREVIEW) {
+          console.log(`  ! [skill-evals] ... ${evalIssues.length - EVAL_WARNING_PREVIEW} more`);
+        }
+        console.log(
+          `Skill evals: ${evalIssues.length} warning(s)`
+          + `${evalIssues.length ? ' (run `spells skill eval audit` for detail; `spells push` still blocks)' : ''}.`,
+        );
+      } catch (e) {
+        console.log(`Skill evals: skipped (${e instanceof Error ? e.message : String(e)})`);
+      }
 
       try {
         const globalResults = await runGlobalSync();
