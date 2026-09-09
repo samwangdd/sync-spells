@@ -196,6 +196,50 @@ const kiroAllowedShellCommands = [
   'mypy.*',
 ];
 
+// Kiro V3 会有损迁移旧正则（管道规则可能变成孤立 *），因此直接提供 glob；旧字段保留给 V2。
+const kiroShellAllowGlobs = [
+  'pwd', 'ls', 'rg', 'grep', 'head', 'tail', 'wc',
+  'git status', 'git branch', 'git diff', 'git log', 'git show', 'git ls-files',
+  'npm test', 'npm run test', 'npm run lint', 'npm run typecheck',
+  'pnpm test', 'pnpm lint', 'pnpm typecheck', 'yarn test', 'yarn lint',
+  'pytest', 'ruff check', 'mypy',
+].flatMap((command) => [command, `${command} *`]).concat(['find . -maxdepth *', 'sed -n *']);
+
+// 参数必须是完整 token；*-f* 会把 --follow-tags 也当成强推而永久拒绝。
+const kiroForcePushGlobs = ['-f', '--force', '--force-with-lease', '--force-if-includes']
+  .flatMap((flag) => [
+    `git *push ${flag}`, `git *push ${flag} *`,
+    `git *push * ${flag}`, `git *push * ${flag} *`,
+  ]).concat(['git *push --force-with-lease=*', 'git *push * --force-with-lease=*']);
+
+// shell 名后保留 token 边界，不能把 shasum 等普通管道目标当作 sh。
+const kiroPipedShellGlobs = ['curl', 'wget'].flatMap((download) =>
+  ['sh', 'bash'].flatMap((shell) =>
+    ['', ' '].flatMap((space) => [`${download} *|${space}${shell}`, `${download} *|${space}${shell} *`]),
+  ),
+);
+
+const kiroShellDenyGlobs = [
+  'shred', 'truncate', 'mkfs', 'sudo', 'su', 'doas', 'chown', 'setfacl',
+  'crontab', 'visudo', 'eval', 'nc', 'netcat', 'ncat', 'scp', 'rsync',
+  'env', 'printenv', 'history',
+].flatMap((command) => [command, `${command} *`]).concat([
+  'rm *-rf*', '* -rf *', 'find . *-delete*', 'dd if=*', '>*/dev/*',
+  'mv */dev/null*', 'chmod *777*', 'systemctl enable*', 'exec *(*',
+  'python -c*', 'python3 -c*', 'node -e*', 'perl -e*', 'ruby -e*',
+  'ld_preload*', 'LD_PRELOAD*',
+  'bash <(*', 'sh <(*', '/dev/tcp/*', 'curl -F*', 'curl -X POST -d @*',
+  'cat ~/.ssh*', 'cat ~/.aws*', 'cat ~/.kube*',
+  'grep -r*', 'tar -cz*', 'zip -r*',
+  'git *reset *--hard*', 'git *clean *-fd*',
+], kiroForcePushGlobs, kiroPipedShellGlobs);
+
+interface KiroPermissionRule {
+  capability: 'shell' | 'fs_read' | 'fs_write';
+  effect: 'allow' | 'deny';
+  match?: string[];
+}
+
 const kiroTools = (tools?: string): string[] => {
   if (!tools) return [];
 
@@ -213,11 +257,17 @@ export const toJson = (data: AgentFrontmatter, body: string): string => {
   const tools = kiroTools(data.tools);
   const allowedTools = tools.filter((tool) => kiroAllowedTools.has(tool));
   const toolsSettings: Record<string, unknown> = {};
+  const rules: KiroPermissionRule[] = [];
   if (tools.includes('write')) {
+    const deniedPaths = ['~/.ssh/**', '~/.aws/**', '~/.kube/**', '~/.gnupg/**', '~/.kiro/**', '~/.claude/**', '~/.codex/**'];
     toolsSettings.write = {
       allowedPaths: ['./**'],
-      deniedPaths: ['~/.ssh/**', '~/.aws/**', '~/.kube/**', '~/.gnupg/**', '~/.kiro/**', '~/.claude/**', '~/.codex/**'],
+      deniedPaths,
     };
+    rules.push(
+      { capability: 'fs_write', effect: 'allow', match: ['./**'] },
+      { capability: 'fs_write', effect: 'deny', match: deniedPaths },
+    );
   }
   if (tools.includes('shell')) {
     toolsSettings.shell = {
@@ -225,6 +275,13 @@ export const toJson = (data: AgentFrontmatter, body: string): string => {
       allowedCommands: kiroAllowedShellCommands,
       deniedCommands: kiroDeniedShellCommands,
     };
+    rules.push(
+      { capability: 'shell', effect: 'allow', match: kiroShellAllowGlobs },
+      { capability: 'shell', effect: 'deny', match: kiroShellDenyGlobs },
+    );
+  }
+  if (tools.some((tool) => ['read', 'grep', 'glob'].includes(tool))) {
+    rules.push({ capability: 'fs_read', effect: 'allow' });
   }
 
   const obj: Record<string, unknown> = {
@@ -236,6 +293,13 @@ export const toJson = (data: AgentFrontmatter, body: string): string => {
     includeMcpJson: true,
     toolsSettings,
   };
+  if (rules.length > 0) {
+    obj.permissions = {
+      rules,
+      // 旧 cat 负字符正则无法用 shell glob 等价表达，交给只读策略判断，避免扩大自动授权。
+      ...(tools.includes('shell') ? { policies: ['read-only-shell'] } : {}),
+    };
+  }
   if (tools.length > 0) {
     obj.tools = tools;
   }
