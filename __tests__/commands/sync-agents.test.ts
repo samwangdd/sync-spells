@@ -104,6 +104,21 @@ describe('runAgentSync', () => {
     expect(parsed.name).toBe('jira');
   });
 
+  test('syncs agents after category logs without treating the logs as agent definitions', async () => {
+    await writeConfigWithLibrarySource();
+    await mkdir(path.join(workspace, 'agents', 'coding'), { recursive: true });
+    await writeFile(path.join(workspace, 'agents', 'coding', 'log.md'), '# Agent maintenance history\n', 'utf8');
+    const { syncAgents } = loadModules();
+
+    const results = await syncAgents.runAgentSync();
+
+    expect(results.map((result) => result.agent)).toEqual(['jira']);
+    const output = JSON.parse(await readFile(path.join(home, '.kiro/agents', 'jira.json'), 'utf8'));
+    expect(output.name).toBe('jira');
+    expect(output.prompt).toBe('Jira agent body.\n');
+    await expect(lstat(path.join(home, '.kiro/agents', 'log.json'))).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
   test('backs up a pre-existing real .toml before overwriting', async () => {
     await writeConfig();
     const codexDir = path.join(home, '.codex/agents');

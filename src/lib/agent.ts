@@ -260,7 +260,8 @@ export const listAgentFiles = async (agentsDir: string): Promise<string[]> => {
     }
     const sub = path.join(agentsDir, entry.name);
     for (const file of await fs.readdir(sub, { withFileTypes: true })) {
-      if (file.isFile() && file.name.endsWith('.md') && file.name !== 'README.md') {
+      // 分类内的说明和变更日志不是 Agent 定义，不要求 frontmatter，也不能参与分发。
+      if (file.isFile() && file.name.endsWith('.md') && file.name !== 'README.md' && file.name !== 'log.md') {
         out.push(path.join(sub, file.name));
       }
     }
