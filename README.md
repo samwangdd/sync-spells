@@ -27,15 +27,17 @@ This registers the global `spells` command.
 
 ## Usage
 
-### Setup
+Three commands cover the core workflow: initialize once, distribute globally, activate per project.
+
+### 1. `spells setup` — initialize (once)
 
 ```bash
 spells setup
 ```
 
-Interactive prompt to specify your spell source directory and choose which tools to enable. Configuration is saved to `~/.sync-spells/config.json`.
+Interactive prompt to specify your spell source directory and choose which tools to enable. Configuration is saved to `~/.sync-spells/config.json`. Everything else depends on this having run first.
 
-### Sync spells
+### 2. `spells sync` — distribute to every tool
 
 ```bash
 spells sync
@@ -56,21 +58,41 @@ Creates symlinks from your source directory into each tool's config directory. E
 
 Generated files are derived output — edit the canonical `.md`, never the `.toml`/`.json`. Pre-existing real files are backed up before being replaced.
 
-### Push new spells
+Run `spells sync` again any time the source directory changes, or after adding/removing a tool.
+
+### 3. `spells use [preset]` — activate a preset in the current project
 
 ```bash
-spells push [path]
+cd /path/to/project
+spells use            # infers a preset from bindings, or falls back to "global"
+spells use coding     # explicitly activate the "coding" preset
 ```
 
-Copies spell files from the specified directory (defaults to current directory) into your source directory. Existing files are skipped.
+Links the preset's resolved skill set directly into this project's `.codex/skills` and `.claude/skills` (inbox skills excluded). `spells sync` runs the same activation automatically for every project you've `bind`-ed, so `use` is mainly for a project you haven't bound yet, or a one-off override.
 
-### Check status
+### Everything else
 
-```bash
-spells status
-```
+The commands below support the three above but aren't part of the daily loop:
 
-Shows the active preset and linked skills for the current project. Use `spells status --verbose` to inspect global tool mapping symlinks.
+| Command | Purpose |
+|---|---|
+| `spells status` | Show the active preset and linked skills for the current project (`--verbose` for global symlink health) |
+| `spells push [path]` | Copy local spell files back into the source directory |
+| `spells skill add/new/list/globalize/localize` | Manage skills in the Library |
+| `spells skill eval audit/run` | Audit/run skill verification suites |
+| `spells preset` / `spells profiles` | List, show, and validate presets (profile is the legacy name) |
+| `spells resolve [preset]` | Print the resolved skill list for a preset without activating it |
+| `spells bind [list\|add\|remove]` | Bind a project directory tree to a default preset |
+| `spells mcp status/sync/use` | Manage MCP server configuration (separate from skills) |
+| `spells sources sync/list` | Adopt third-party skill repositories into the Library |
+| `spells migrate [--dry-run]` | Convert an existing registry to the category layout |
+| `spells workspace init/doctor/migrate` | Manage the workspace manifest, validate symlink health |
+| `spells doctor` | Health check across config, registry, evals, and profiles |
+| `spells config get/set` | Read/write raw config values |
+| `spells web` | Local web UI to browse skills and edit presets |
+| `spells service install/status/restart/uninstall` | Run `spells web` as a macOS background service |
+
+See the sections below for details on skill management, MCP, and the workspace.
 
 ## Skill Management
 
@@ -82,26 +104,7 @@ SyncSpells has five daily concepts:
 4. **Binding** - a directory tree mapped to a default preset.
 5. **Project** - the current repository using one preset.
 
-Profiles still exist as the backward-compatible storage format for presets.
-
-### Commands
-
-- `spells skill list [--category]` - List Library skills
-- `spells skill add <path>` - Add skill to the Library
-- `spells skill new <name>` - Create a new skill
-- `spells skill eval audit` - Audit changed-skill eval verification
-- `spells skill eval run <skill>` - Run isolated baseline/current evals; see [skill evals](docs/skill-evals.md)
-- `profiles/global.json` - Add a skill to the minimal global profile with an explicit `extras` entry
-- `spells skill localize <skill> --to <category>` - Move a global skill back to `knowledge`, `coding`, `workflow`, or `inbox`
-- `spells bind [list|add|remove]` - Manage directory-tree defaults for presets
-- `spells preset [list|show]` - Manage presets
-- `spells use [preset]` - Activate a preset in the current project
-- `spells resolve [preset]` - Inspect the project skill list a preset resolves to
-- `spells migrate [--dry-run]` - Convert an existing registry to the category layout
-- `spells profiles [list|show]` - Backward-compatible profile commands
-- `spells doctor` - Health check
-- `spells workspace [init|doctor|migrate]` - Manage the workspace manifest and validate skill/agent symlink health
-- `spells config [get|set]` - Configuration management
+Profiles still exist as the backward-compatible storage format for presets. See the command table above for the full list; `spells skill eval run <skill>` is documented separately in [skill evals](docs/skill-evals.md).
 
 ## MCP Management
 

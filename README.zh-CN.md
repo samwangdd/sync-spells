@@ -27,15 +27,17 @@ npm link
 
 ## 使用
 
-### 初始化
+三个命令覆盖核心工作流：初始化一次、全局分发、按项目激活。
+
+### 1. `spells setup` —— 初始化（只需一次）
 
 ```bash
 spells setup
 ```
 
-交互式引导：指定 spell 源目录并选择要启用的工具。配置保存至 `~/.sync-spells/config.json`。
+交互式引导：指定 spell 源目录并选择要启用的工具。配置保存至 `~/.sync-spells/config.json`。后续所有命令都依赖这一步先完成。
 
-### 同步 spells
+### 2. `spells sync` —— 分发到每个工具
 
 ```bash
 spells sync
@@ -56,21 +58,41 @@ spells sync
 
 生成的文件是派生产物 —— 永远改 canonical 的 `.md`，不要改 `.toml`/`.json`。已存在的真实文件在被替换前会先备份。
 
-### 推入新 spells
+源目录有变化，或增删了某个工具后，重新跑一次 `spells sync` 即可。
+
+### 3. `spells use [preset]` —— 在当前项目激活某个 preset
 
 ```bash
-spells push [path]
+cd /path/to/project
+spells use            # 按 binding 自动推断 preset，推断不到则回退到 "global"
+spells use coding     # 显式激活 "coding" preset
 ```
 
-将指定目录（默认当前目录）中的 spell 文件复制到源目录。已存在的文件会跳过。
+把该 preset 解析出的 skill 集合直接链接进当前项目的 `.codex/skills` 和 `.claude/skills`（inbox skills 会被排除）。对于已经 `bind` 过的项目，`spells sync` 会自动帮你跑一遍同样的激活逻辑，所以 `use` 主要用在还没绑定的项目，或临时想覆盖 preset 的场景。
 
-### 查看状态
+### 其余命令
 
-```bash
-spells status
-```
+下面这些命令是上面三个的辅助能力，不属于日常必用的闭环：
 
-显示当前项目启用的 preset 和已链接的 skills。使用 `spells status --verbose` 查看全局工具映射 symlink 状态。
+| 命令 | 作用 |
+|---|---|
+| `spells status` | 查看当前项目的 preset 与已链接 skills（`--verbose` 查看全局 symlink 健康状态） |
+| `spells push [path]` | 把本地 spell 文件推回源目录 |
+| `spells skill add/new/list/globalize/localize` | 管理 Library 里的 skills |
+| `spells skill eval audit/run` | 审计/运行 skill 验证套件 |
+| `spells preset` / `spells profiles` | 查看、校验 preset（profile 是历史遗留命名） |
+| `spells resolve [preset]` | 打印某个 preset 解析出的 skill 列表，不做实际激活 |
+| `spells bind [list\|add\|remove]` | 把某个项目目录树绑定到默认 preset |
+| `spells mcp status/sync/use` | 管理 MCP server 配置（与 skills 分开管理） |
+| `spells sources sync/list` | 把第三方 skill 仓库接入 Library |
+| `spells migrate [--dry-run]` | 把既有 registry 转成当前分类结构 |
+| `spells workspace init/doctor/migrate` | 管理 workspace manifest，校验 symlink 健康 |
+| `spells doctor` | 对配置、registry、evals、profile 做健康检查 |
+| `spells config get/set` | 读写原始配置字段 |
+| `spells web` | 本地 Web UI，浏览 skills 和编辑 preset |
+| `spells service install/status/restart/uninstall` | 把 `spells web` 托管为 macOS 后台服务 |
+
+下面几节详细介绍 skill 管理、MCP 和 workspace。
 
 ## Skill 管理
 
@@ -82,24 +104,7 @@ SyncSpells 只有五个日常概念：
 4. **Binding**：某个目录树默认使用哪个 preset。
 5. **Project**：当前仓库使用哪个 preset。
 
-Profile 仍然作为向后兼容的存储格式存在；日常命令优先使用 Preset 语义。
-
-### 常用命令
-
-- `spells skill list [--category]`：查看 Library 中的 skills
-- `spells skill add <path>`：把 skill 加入 Library
-- `spells skill new <name>`：创建新 skill
-- `profiles/global.json`：用显式 `extras` 逐条加入最小全局 profile
-- `spells skill localize <skill> --to <category>`：把全局 skill 移回 `knowledge`、`coding`、`workflow` 或 `inbox`
-- `spells bind [list|add|remove]`：管理目录树到 preset 的默认绑定
-- `spells preset [list|show]`：管理 presets
-- `spells use [preset]`：在当前项目启用 preset
-- `spells resolve [preset]`：查看某个 preset 会解析出哪些项目级 skills
-- `spells migrate [--dry-run]`：把既有 registry 转成当前分类结构
-- `spells profiles [list|show]`：向后兼容的 profile 命令
-- `spells doctor`：健康检查
-- `spells workspace [init|doctor|migrate]`：管理 workspace manifest,校验 skill/agent symlink 健康
-- `spells config [get|set]`：配置管理
+Profile 仍然作为向后兼容的存储格式存在。完整命令列表见上方表格；`spells skill eval run <skill>` 的用法单独文档见 [skill evals](docs/skill-evals.md)。
 
 ## MCP 管理
 
