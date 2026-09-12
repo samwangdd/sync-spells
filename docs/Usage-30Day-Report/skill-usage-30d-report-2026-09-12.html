@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skill 使用情况报告 · 2026-09-12</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #000000;
+    --muted: #666666;
+    --border: #eaeaea;
+    --border-strong: #e0e0e0;
+    --accent: #0070f3;
+    --danger: #ff0000;
+    --danger-bg: #fff5f5;
+    --warn: #f5a623;
+    --warn-bg: #fffbeb;
+    --ok: #0070f3;
+    --ok-bg: #f0f7ff;
+    --success: #17c964;
+    --card-radius: 8px;
+    --mono: 'SF Mono', 'Menlo', 'Consolas', monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 64px 24px 96px;
+  }
+  header {
+    margin-bottom: 48px;
+  }
+  .eyebrow {
+    font-size: 13px;
+    color: var(--muted);
+    font-family: var(--mono);
+    letter-spacing: 0.02em;
+    margin-bottom: 12px;
+  }
+  h1 {
+    font-size: 32px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0 0 8px;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.6;
+    margin: 0;
+  }
+  .meta-row {
+    display: flex;
+    gap: 24px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+  }
+  .meta-item {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .meta-item b {
+    color: var(--fg);
+    font-weight: 600;
+  }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    overflow: hidden;
+    margin-bottom: 56px;
+  }
+  .stat-card {
+    background: var(--bg);
+    padding: 24px;
+  }
+  .stat-value {
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+  .stat-value.danger { color: var(--danger); }
+  .stat-label {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  section {
+    margin-bottom: 56px;
+  }
+  .section-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .section-desc {
+    font-size: 14px;
+    color: var(--muted);
+    margin: 0 0 20px;
+    line-height: 1.6;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .badge-zero { background: var(--danger-bg); color: var(--danger); }
+  .badge-new { background: #f3f0ff; color: #6b4fbb; }
+  .badge-low { background: var(--warn-bg); color: #ad6800; }
+  .badge-active { background: var(--ok-bg); color: var(--accent); }
+
+  .zero-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  .zero-card {
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    padding: 14px 16px;
+    transition: border-color 0.15s ease;
+  }
+  .zero-card:hover {
+    border-color: var(--border-strong);
+  }
+  .zero-card.new-card {
+    border-color: #ded4f7;
+    background: #faf8ff;
+  }
+  .zero-name {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    word-break: break-all;
+  }
+  .zero-tag {
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  thead th {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-strong);
+    color: var(--muted);
+    font-weight: 500;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  thead th.num { text-align: right; }
+  tbody td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody td.num {
+    text-align: right;
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+  }
+  tbody tr:hover {
+    background: #fafafa;
+  }
+  tbody tr.zero-row {
+    background: var(--danger-bg);
+  }
+  tbody tr.zero-row:hover {
+    background: #ffecec;
+  }
+  tbody tr.new-row {
+    background: #f3f0ff;
+  }
+  tbody tr.new-row:hover {
+    background: #ebe4fb;
+  }
+  td.skill-name {
+    font-family: var(--mono);
+    font-weight: 500;
+  }
+  td.cat-tag {
+    color: var(--muted);
+    font-size: 12px;
+  }
+  td.total-num {
+    font-weight: 600;
+  }
+
+  .bar-track {
+    display: inline-block;
+    width: 60px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    vertical-align: middle;
+    margin-left: 8px;
+  }
+  .bar-fill {
+    height: 100%;
+    background: var(--accent);
+  }
+
+  .filter-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .filter-btn {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 6px 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--fg);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .filter-btn:hover {
+    border-color: var(--fg);
+  }
+  .filter-btn.active {
+    background: var(--fg);
+    color: var(--bg);
+    border-color: var(--fg);
+  }
+  .scope-btn {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--fg);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .scope-btn:hover {
+    border-color: var(--fg);
+  }
+  .scope-btn.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+
+  .method-list {
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--muted);
+  }
+  .method-list b {
+    color: var(--fg);
+    font-family: var(--mono);
+    font-weight: 600;
+  }
+  .method-list li {
+    margin-bottom: 6px;
+  }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding-top: 24px;
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  @media (max-width: 640px) {
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .zero-grid { grid-template-columns: 1fr; }
+    .container { padding: 40px 16px 64px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="eyebrow">SYNC-SPELLS · SKILL USAGE REPORT</div>
+    <h1>近 30 天 Skill 使用情况</h1>
+    <p class="subtitle">分析全部 skill-category 分类（coding / workflow 专项 + foundation / git / lark / mattpocock / testing 等 global 分类），统计其在 Claude Code、Codex、Kiro 三个工具近 30 天日志中的实际调用命中次数。</p>
+    <div class="meta-row">
+      <div class="meta-item">生成日期 <b>2026-09-12</b></div>
+      <div class="meta-item">统计窗口 <b>近 30 天</b></div>
+      <div class="meta-item">覆盖工具 <b>Claude Code / Codex / Kiro</b></div>
+      <div class="meta-item">不含 <b>Cursor</b></div>
+    </div>
+  </header>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-value">171</div>
+      <div class="stat-label">全部 skill 总数（54 专项 + 117 global）</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value danger">36</div>
+      <div class="stat-label">确认闲置（存在满30天仍零命中）</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">21</div>
+      <div class="stat-label">太新排除（创建&lt;30天，且零命中）</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">21%</div>
+      <div class="stat-label">全量确认闲置占比</div>
+    </div>
+  </div>
+
+  <div class="filter-bar" style="margin-bottom:32px;">
+    <button class="scope-btn active" data-scope="all">全部范围 (171)</button>
+    <button class="scope-btn" data-scope="focus">coding+workflow 专项 (54)</button>
+    <button class="scope-btn" data-scope="global">其他 global 分类 (117)</button>
+  </div>
+
+  <section>
+    <h2 class="section-title">确认闲置 Skill 清单 <span class="badge badge-zero" id="idle-count">36</span></h2>
+    <p class="section-desc">创建时间早于 2026-08-13（已存在满30天），且在三个工具的近30天日志中都没有被调用过一次。</p>
+    <div class="zero-grid" id="zero-grid"></div>
+  </section>
+
+  <section>
+    <h2 class="section-title">太新排除 <span class="badge badge-new" id="new-count">21</span></h2>
+    <p class="section-desc">最近才创建的 skill，存在时间不足30天，"零命中"只是因为还没到统计窗口，不代表闲置。不计入闲置判定。</p>
+    <div class="zero-grid" id="toonew-grid"></div>
+  </section>
+
+  <section>
+    <h2 class="section-title">完整命中矩阵</h2>
+    <p class="section-desc">按合计命中数降序排列，点击筛选按钮切换视图。"创建日期"取自 git 首次提交记录。</p>
+    <div class="filter-bar">
+      <button class="filter-btn active" data-filter="all">全部</button>
+      <button class="filter-btn" data-filter="zero">确认闲置</button>
+      <button class="filter-btn" data-filter="new">太新排除</button>
+      <button class="filter-btn" data-filter="low">低频 1-20</button>
+      <button class="filter-btn" data-filter="active">活跃 &gt;20</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Skill</th>
+          <th>分类</th>
+          <th>创建日期</th>
+          <th class="num">Claude Code</th>
+          <th class="num">Codex</th>
+          <th class="num">Kiro</th>
+          <th class="num">合计</th>
+          <th>状态</th>
+        </tr>
+      </thead>
+      <tbody id="matrix-body"></tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2 class="section-title">统计方法</h2>
+    <ul class="method-list">
+      <li><b>Claude Code</b> — 扫描 <code>~/.claude/projects/**/*.jsonl</code>（近30天 mtime），匹配 Skill 工具调用字段 <code>"skill":"&lt;name&gt;"</code>，精确无歧义。</li>
+      <li><b>Codex</b> — 扫描 <code>~/.codex/archived_sessions/</code> 与 <code>~/.codex/sessions/</code>（近30天），匹配 exec 命令中读取 <code>skills/&lt;name&gt;/SKILL.md</code> 的痕迹。Codex 没有独立的调用事件，此处统计的是"被模型读取/激活"次数。</li>
+      <li><b>Kiro</b> — 扫描 <code>~/.kiro/sessions/**/messages.jsonl</code>（近30天），匹配 <code>disclose_context</code> 等工具调用中的 <code>"name":"&lt;skill&gt;"</code> 字段。</li>
+      <li>命中数是"被当作工具调用参数出现"的次数，不是聊天中提及技能名字的次数，避免误报。</li>
+      <li><b>创建日期</b>取自该 skill 目录在 git 历史中的首次提交（<code>git log --follow</code>），用于排除"刚创建、还没到30天统计窗口"的误判——这类 skill 零命中不代表闲置，只是太新。</li>
+      <li>零命中且已存在满30天的 skill，也不代表永久无用，可能是季节性任务（如 quarterly-review）尚未到触发时机，建议人工复核后再决定下线或归档进 <code>inbox/</code>。</li>
+    </ul>
+  </section>
+
+  <footer>
+    <span>sync-spells · skill-category/{coding,workflow}</span>
+    <span>不含 Cursor 数据</span>
+  </footer>
+
+</div>
+
+<script>
+// created: 该 skill 首次出现在 git 历史中的日期（git log --follow 首个提交），
+// 用于区分"存在满30天仍零命中"与"刚创建、尚未到统计窗口"。
+const CUTOFF = "2026-08-13"; // 今天 2026-09-12 往前推 30 天
+
+const data = [
+  {cat:"coding", skill:"changed-files-quality-gate", created:"2026-06-02", claude:0, codex:868, kiro:2, total:870},
+  {cat:"coding", skill:"happy-hour", created:"2026-08-15", claude:0, codex:32, kiro:0, total:32},
+  {cat:"coding", skill:"maintenance-routine-design", created:"2026-08-18", claude:0, codex:80, kiro:0, total:80},
+  {cat:"coding", skill:"mexc-coding-loop", created:"2026-06-18", claude:0, codex:1110, kiro:2, total:1112},
+  {cat:"coding", skill:"review-css-scss", created:"2026-06-02", claude:0, codex:615, kiro:2, total:617},
+  {cat:"coding", skill:"scss-component-conventions", created:"2026-06-02", claude:1, codex:527, kiro:0, total:528},
+  {cat:"coding", skill:"sensors-impl", created:"2026-06-02", claude:1, codex:428, kiro:1, total:430},
+  {cat:"coding", skill:"software-design-philosophy", created:"2026-07-13", claude:1, codex:502, kiro:0, total:503},
+  {cat:"coding", skill:"think-before-coding", created:"2026-06-02", claude:8, codex:1765, kiro:0, total:1773},
+  {cat:"coding", skill:"vercel-react-best-practices", created:"2026-06-02", claude:0, codex:429, kiro:0, total:429},
+  {cat:"workflow", skill:"ask-for-review", created:"2026-09-05", claude:0, codex:50, kiro:0, total:50},
+  {cat:"workflow", skill:"calendar-event", created:"2026-06-02", claude:0, codex:3, kiro:0, total:3},
+  {cat:"workflow", skill:"defuddle", created:"2026-06-02", claude:0, codex:0, kiro:0, total:0},
+  {cat:"workflow", skill:"epub-cover", created:"2026-07-13", claude:0, codex:0, kiro:0, total:0},
+  {cat:"workflow", skill:"galio-oncall", created:"2026-06-17", claude:0, codex:0, kiro:0, total:0},
+  {cat:"workflow", skill:"harness-self-improve", created:"2026-08-12", claude:0, codex:0, kiro:0, total:0},
+  {cat:"workflow", skill:"image-compression", created:"2026-07-20", claude:0, codex:0, kiro:0, total:0},
+  {cat:"workflow", skill:"image-host-migration", created:"2026-07-13", claude:0, codex:0, kiro:0, total:0},
+  {cat:"workflow", skill:"issue-to-mr", created:"2026-08-13", claude:0, codex:341, kiro:0, total:341},
+  {cat:"workflow", skill:"jira-create", created:"2026-08-07", claude:0, codex:0, kiro:0, total:0},
+  {cat:"workflow", skill:"jira-create-sec-audit", created:"2026-06-02", claude:0, codex:0, kiro:0, total:0},
+  {cat:"workflow", skill:"jira-create-subtask", created:"2026-06-02", claude:0, codex:18, kiro:0, total:18},
+  {cat:"workflow", skill:"jira-daily-worklog", created:"2026-06-02", claude:8, codex:0, kiro:0, total:8},
+  {cat:"workflow", skill:"jira-date-search", created:"2026-06-02", claude:0, codex:0, kiro:0, total:0},
+  {cat:"workflow", skill:"jira-handoff", created:"2026-06-02", claude:2, codex:194, kiro:6, total:202},
+  {cat:"workflow", skill:"jira-workload-report", created:"2026-09-05", claude:1, codex:0, kiro:0, total:1},
+  {cat:"workflow", skill:"kickoff", created:"2026-06-02", claude:1, codex:16, kiro:0, total:17},
+  {cat:"workflow", skill:"lark-base-bug-fix-loop", created:"2026-09-12", claude:0, codex:0, kiro:0, total:0},
+  {cat:"workflow", skill:"lark-ticket-group", created:"2026-07-13", claude:0, codex:0, kiro:0, total:0},
+  {cat:"workflow", skill:"localize-sync-flow", created:"2026-08-07", claude:0, codex:104, kiro:0, total:104},
+  {cat:"workflow", skill:"luban-deploy", created:"2026-07-13", claude:0, codex:22, kiro:0, total:22},
+  {cat:"workflow", skill:"luban-frontend-deploy", created:"2026-07-29", claude:0, codex:124, kiro:11, total:135},
+  {cat:"workflow", skill:"manage-taskboard", created:"2026-08-06", claude:230, codex:5973, kiro:56, total:6259},
+  {cat:"workflow", skill:"marathon", created:"2026-06-02", claude:0, codex:0, kiro:0, total:0},
+  {cat:"workflow", skill:"marathon-fix", created:"2026-06-02", claude:0, codex:0, kiro:0, total:0},
+  {cat:"workflow", skill:"media-compression", created:"2026-07-20", claude:0, codex:0, kiro:0, total:0},
+  {cat:"workflow", skill:"mexc-ai-store", created:"2026-08-03", claude:2, codex:0, kiro:0, total:2},
+  {cat:"workflow", skill:"mexc-nginx-route", created:"2026-08-27", claude:0, codex:0, kiro:0, total:0},
+  {cat:"workflow", skill:"omf-prd-pipeline", created:"2026-07-13", claude:0, codex:147, kiro:0, total:147},
+  {cat:"workflow", skill:"one-shot", created:"2026-09-08", claude:0, codex:14, kiro:0, total:14},
+  {cat:"workflow", skill:"pr-asset-pipeline", created:"2026-07-13", claude:0, codex:0, kiro:0, total:0},
+  {cat:"workflow", skill:"pre-qa", created:"2026-06-17", claude:2, codex:129, kiro:0, total:131},
+  {cat:"workflow", skill:"qa-readiness-gate", created:"2026-09-05", claude:0, codex:42, kiro:0, total:42},
+  {cat:"workflow", skill:"quarterly-review", created:"2026-07-02", claude:0, codex:0, kiro:0, total:0},
+  {cat:"workflow", skill:"ship", created:"2026-07-20", claude:0, codex:0, kiro:0, total:0},
+  {cat:"workflow", skill:"static-resource-migration", created:"2026-07-20", claude:0, codex:147, kiro:0, total:147},
+  {cat:"workflow", skill:"static-resource-upload", created:"2026-07-20", claude:0, codex:173, kiro:1, total:174},
+  {cat:"workflow", skill:"submit-for-qa", created:"2026-09-05", claude:0, codex:46, kiro:0, total:46},
+  {cat:"workflow", skill:"submit-review", created:"2026-06-17", claude:0, codex:128, kiro:0, total:128},
+  {cat:"workflow", skill:"taskboard-handoff", created:"2026-09-04", claude:3, codex:164, kiro:0, total:167},
+  {cat:"workflow", skill:"taskboard-loop-cron", created:"2026-08-22", claude:0, codex:80, kiro:1, total:81},
+  {cat:"workflow", skill:"taskboard-schedule", created:"2026-09-07", claude:0, codex:75, kiro:0, total:75},
+  {cat:"workflow", skill:"triaging-blocked-issues", created:"2026-08-12", claude:0, codex:1441, kiro:1, total:1442},
+  {cat:"workflow", skill:"video-compression", created:"2026-07-20", claude:0, codex:0, kiro:0, total:0},
+  {cat:"workflow", skill:"weekly-review", created:"2026-07-13", claude:0, codex:16, kiro:0, total:16},
+];
+
+const globalData = [
+  {cat:"foundation", skill:"evolution", created:"2026-06-02", claude:47, codex:1164, kiro:10, total:1221},
+  {cat:"foundation", skill:"harness", created:"2026-07-04", claude:1, codex:1084, kiro:0, total:1085},
+  {cat:"foundation", skill:"orchestration", created:"2026-08-03", claude:0, codex:1074, kiro:1, total:1075},
+  {cat:"foundation", skill:"picky", created:"2026-06-02", claude:11, codex:1099, kiro:2, total:1112},
+  {cat:"foundation", skill:"show-me", created:"2026-09-05", claude:0, codex:1010, kiro:3, total:1013},
+  {cat:"foundation", skill:"skill-health-check", created:"2026-06-02", claude:2, codex:1184, kiro:0, total:1186},
+  {cat:"foundation", skill:"third-party-skill-sync", created:"2026-07-20", claude:0, codex:11, kiro:1, total:12},
+  {cat:"foundation", skill:"writing-skills", created:"2026-08-19", claude:28, codex:1001, kiro:8, total:1037},
+  {cat:"frontend-performance", skill:"web-perf-audit", created:"2026-07-04", claude:0, codex:0, kiro:0, total:0},
+  {cat:"git", skill:"git-commit", created:"2026-06-17", claude:0, codex:463, kiro:13, total:476},
+  {cat:"git", skill:"git-pr", created:"2026-06-17", claude:3, codex:513, kiro:2, total:518},
+  {cat:"git", skill:"git-tag", created:"2026-07-04", claude:0, codex:0, kiro:0, total:0},
+  {cat:"git", skill:"git-worktree", created:"2026-06-17", claude:4, codex:406, kiro:16, total:426},
+  {cat:"git", skill:"sync-dashi-taskboard-upstream", created:"2026-08-29", claude:0, codex:17, kiro:0, total:17},
+  {cat:"i18n", skill:"hardcoded-copy-i18n-audit", created:"2026-09-05", claude:0, codex:22, kiro:0, total:22},
+  {cat:"i18n", skill:"i18n-copy-organizer", created:"2026-09-05", claude:0, codex:147, kiro:0, total:147},
+  {cat:"i18n", skill:"lokalise-upload-flow", created:"2026-09-05", claude:3, codex:201, kiro:0, total:204},
+  {cat:"knowledge", skill:"code-change-quiz", created:"2026-09-05", claude:0, codex:42, kiro:3, total:45},
+  {cat:"knowledge", skill:"docs-archive", created:"2026-06-02", claude:0, codex:144, kiro:0, total:144},
+  {cat:"knowledge", skill:"docs-rules", created:"2026-06-02", claude:2, codex:197, kiro:0, total:199},
+  {cat:"knowledge", skill:"docs-structure", created:"2026-06-02", claude:0, codex:163, kiro:0, total:163},
+  {cat:"knowledge", skill:"family-finance-analysis", created:"2026-07-04", claude:0, codex:0, kiro:0, total:0},
+  {cat:"knowledge", skill:"learning-archive", created:"2026-06-17", claude:0, codex:0, kiro:0, total:0},
+  {cat:"knowledge", skill:"lenny-product-advisor", created:"2026-07-13", claude:0, codex:0, kiro:0, total:0},
+  {cat:"knowledge", skill:"ljg-book", created:"2026-09-05", claude:0, codex:4, kiro:0, total:4},
+  {cat:"knowledge", skill:"llm-wiki-para", created:"2026-06-02", claude:0, codex:0, kiro:0, total:0},
+  {cat:"lark", skill:"lark-mail", created:"2026-07-04", claude:0, codex:40, kiro:0, total:40},
+  {cat:"lark", skill:"lark-review-invite", created:"2026-07-04", claude:0, codex:153, kiro:0, total:153},
+  {cat:"lark", skill:"lark-shared", created:"2026-07-04", claude:9, codex:87, kiro:2, total:98},
+  {cat:"mcp-registry", skill:"gitlab-cli-setup", created:"2026-06-17", claude:0, codex:25, kiro:0, total:25},
+  {cat:"mcp-registry", skill:"jira-mcp-setup", created:"2026-07-04", claude:0, codex:0, kiro:0, total:0},
+  {cat:"mcp-registry", skill:"lokalise-mcp-setup", created:"2026-07-04", claude:0, codex:0, kiro:0, total:0},
+  {cat:"mcp-registry", skill:"presets", created:"2026-06-17", claude:0, codex:0, kiro:0, total:0},
+  {cat:"mcp-registry", skill:"yapi-mcp-setup", created:"2026-07-04", claude:0, codex:0, kiro:0, total:0},
+  {cat:"PM", skill:"omf-prd-review", created:"2026-06-24", claude:2, codex:270, kiro:0, total:272},
+  {cat:"PM", skill:"prd-double-check", created:"2026-06-24", claude:0, codex:144, kiro:0, total:144},
+  {cat:"PM", skill:"prd-formatter", created:"2026-06-24", claude:0, codex:148, kiro:0, total:148},
+  {cat:"system", skill:"mac-performance-triage", created:"2026-07-13", claude:53, codex:42, kiro:0, total:95},
+  {cat:"system", skill:"mac-storage-cleanup", created:"2026-06-02", claude:0, codex:33, kiro:0, total:33},
+  {cat:"system", skill:"vpn", created:"2026-06-02", claude:1, codex:26, kiro:0, total:27},
+  {cat:"testing", skill:"chrome-mcp-harness", created:"2026-06-17", claude:12, codex:813, kiro:8, total:833},
+  {cat:"testing", skill:"figma-ui-parity", created:"2026-07-04", claude:1, codex:58, kiro:0, total:59},
+  {cat:"testing", skill:"mexc-acceptance-audit", created:"2026-08-29", claude:0, codex:252, kiro:0, total:252},
+  {cat:"testing", skill:"mexc-testing", created:"2026-09-08", claude:0, codex:10, kiro:0, total:10},
+  {cat:"testing", skill:"playwright-cli", created:"2026-09-04", claude:0, codex:159, kiro:1, total:160},
+  {cat:"testing", skill:"ui-mock-strategy", created:"2026-06-17", claude:1, codex:210, kiro:0, total:211},
+  {cat:"third-party", skill:"thermo-nuclear-code-quality-review", created:"2026-08-29", claude:0, codex:49, kiro:0, total:49},
+  {cat:"visual-design", skill:"brand-visuals", created:"2026-08-03", claude:0, codex:1071, kiro:0, total:1071},
+  {cat:"writing", skill:"drafter-diagram", created:"2026-07-20", claude:0, codex:144, kiro:0, total:144},
+  {cat:"writing", skill:"humanizer-zh", created:"2026-08-03", claude:0, codex:61, kiro:0, total:61},
+  {cat:"writing", skill:"imagegen", created:"2026-06-02", claude:0, codex:0, kiro:0, total:0},
+  {cat:"writing", skill:"meeting-notes", created:"2026-08-24", claude:0, codex:0, kiro:0, total:0},
+  {cat:"writing", skill:"mermaid-diagram", created:"2026-06-02", claude:0, codex:0, kiro:0, total:0},
+  {cat:"writing", skill:"pandoc", created:"2026-06-02", claude:0, codex:0, kiro:0, total:0},
+  {cat:"writing", skill:"self-media-workflow", created:"2026-07-04", claude:0, codex:29, kiro:0, total:29},
+  {cat:"writing", skill:"talk-draft-iterate", created:"2026-06-02", claude:1, codex:20, kiro:0, total:21},
+  {cat:"writing", skill:"talk-to-slides", created:"2026-06-02", claude:0, codex:22, kiro:0, total:22},
+  {cat:"writing", skill:"twitter-style", created:"2026-06-02", claude:0, codex:16, kiro:0, total:16},
+  {cat:"writing", skill:"voiceover-script", created:"2026-06-02", claude:0, codex:22, kiro:0, total:22},
+  {cat:"writing", skill:"writing-github-readme", created:"2026-06-02", claude:0, codex:0, kiro:0, total:0},
+  {cat:"writing", skill:"writing-style", created:"2026-07-04", claude:0, codex:31, kiro:0, total:31},
+  {cat:"frontend-performance", skill:"h5-performance-regression", created:"2026-06-02", claude:0, codex:0, kiro:0, total:0},
+  {cat:"git", skill:"git-merge-to-branch", created:"2026-06-02", claude:0, codex:174, kiro:0, total:174},
+  {cat:"git", skill:"git-review", created:"2026-06-02", claude:0, codex:424, kiro:0, total:424},
+  {cat:"git", skill:"git-worktree-rm", created:"2026-06-02", claude:0, codex:153, kiro:0, total:153},
+  {cat:"i18n", skill:"lokalise-download-verify", created:"2026-07-13", claude:1, codex:495, kiro:2, total:498},
+  {cat:"i18n", skill:"lokalise-text2md-formatter", created:"2026-07-13", claude:0, codex:415, kiro:0, total:415},
+  {cat:"lark", skill:"lark-base", created:"2026-06-02", claude:1, codex:49, kiro:3, total:53},
+  {cat:"lark", skill:"lark-contact", created:"2026-06-02", claude:0, codex:40, kiro:0, total:40},
+  {cat:"lark", skill:"lark-doc-pitfalls", created:"2026-06-02", claude:0, codex:0, kiro:0, total:0},
+  {cat:"lark", skill:"lark-doc", created:"2026-06-02", claude:2, codex:50, kiro:3, total:55},
+  {cat:"lark", skill:"lark-drive", created:"2026-06-02", claude:0, codex:46, kiro:2, total:48},
+  {cat:"lark", skill:"lark-im", created:"2026-06-02", claude:0, codex:44, kiro:1, total:45},
+  {cat:"lark", skill:"lark-meeting-invite", created:"2026-06-02", claude:0, codex:0, kiro:0, total:0},
+  {cat:"lark", skill:"lark-sheet-i18n", created:"2026-06-02", claude:0, codex:0, kiro:0, total:0},
+  {cat:"lark", skill:"lark-sheets", created:"2026-06-02", claude:5, codex:70, kiro:0, total:75},
+  {cat:"lark", skill:"lark-wiki", created:"2026-06-02", claude:0, codex:43, kiro:1, total:44},
+  {cat:"mattpocock", skill:"ask-matt", created:"2026-09-09", claude:0, codex:4, kiro:0, total:4},
+  {cat:"mattpocock", skill:"claude-handoff", created:"2026-09-09", claude:0, codex:0, kiro:0, total:0},
+  {cat:"mattpocock", skill:"code-review", created:"2026-08-12", claude:3, codex:643, kiro:4, total:650},
+  {cat:"mattpocock", skill:"codebase-design", created:"2026-09-09", claude:0, codex:0, kiro:0, total:0},
+  {cat:"mattpocock", skill:"diagnosing-bugs", created:"2026-09-03", claude:0, codex:36, kiro:0, total:36},
+  {cat:"mattpocock", skill:"domain-modeling", created:"2026-08-12", claude:9, codex:359, kiro:3, total:371},
+  {cat:"mattpocock", skill:"git-guardrails-claude-code", created:"2026-09-09", claude:0, codex:0, kiro:0, total:0},
+  {cat:"mattpocock", skill:"grill-me", created:"2026-06-26", claude:2, codex:0, kiro:1, total:3},
+  {cat:"mattpocock", skill:"grill-with-docs", created:"2026-07-20", claude:0, codex:25, kiro:3, total:28},
+  {cat:"mattpocock", skill:"grilling", created:"2026-06-26", claude:41, codex:1276, kiro:5, total:1322},
+  {cat:"mattpocock", skill:"handoff", created:"2026-08-03", claude:0, codex:1090, kiro:0, total:1090},
+  {cat:"mattpocock", skill:"implement-spec", created:"2026-09-09", claude:0, codex:0, kiro:0, total:0},
+  {cat:"mattpocock", skill:"implement", created:"2026-08-12", claude:0, codex:32, kiro:4, total:36},
+  {cat:"mattpocock", skill:"improve-codebase-architecture", created:"2026-09-09", claude:0, codex:0, kiro:0, total:0},
+  {cat:"mattpocock", skill:"loop-me", created:"2026-09-09", claude:0, codex:0, kiro:0, total:0},
+  {cat:"mattpocock", skill:"migrate-to-shoehorn", created:"2026-09-09", claude:0, codex:0, kiro:0, total:0},
+  {cat:"mattpocock", skill:"prototype", created:"2026-08-12", claude:0, codex:259, kiro:0, total:259},
+  {cat:"mattpocock", skill:"research", created:"2026-08-12", claude:0, codex:270, kiro:0, total:270},
+  {cat:"mattpocock", skill:"resolving-merge-conflicts", created:"2026-09-09", claude:0, codex:0, kiro:0, total:0},
+  {cat:"mattpocock", skill:"retro", created:"2026-09-05", claude:0, codex:0, kiro:0, total:0},
+  {cat:"mattpocock", skill:"scaffold-exercises", created:"2026-09-09", claude:0, codex:0, kiro:0, total:0},
+  {cat:"mattpocock", skill:"setup-matt-pocock-skills", created:"2026-08-12", claude:0, codex:63, kiro:0, total:63},
+  {cat:"mattpocock", skill:"setup-pre-commit", created:"2026-09-09", claude:0, codex:0, kiro:0, total:0},
+  {cat:"mattpocock", skill:"setup-ts-deep-modules", created:"2026-09-09", claude:0, codex:0, kiro:0, total:0},
+  {cat:"mattpocock", skill:"tdd", created:"2026-06-26", claude:9, codex:1936, kiro:3, total:1948},
+  {cat:"mattpocock", skill:"teach", created:"2026-06-26", claude:0, codex:48, kiro:0, total:48},
+  {cat:"mattpocock", skill:"to-questionnaire", created:"2026-09-09", claude:0, codex:0, kiro:0, total:0},
+  {cat:"mattpocock", skill:"to-spec", created:"2026-08-12", claude:0, codex:32, kiro:1, total:33},
+  {cat:"mattpocock", skill:"to-tickets", created:"2026-08-12", claude:0, codex:32, kiro:0, total:32},
+  {cat:"mattpocock", skill:"triage", created:"2026-09-09", claude:0, codex:12, kiro:0, total:12},
+  {cat:"mattpocock", skill:"wait-what", created:"2026-09-09", claude:0, codex:0, kiro:0, total:0},
+  {cat:"mattpocock", skill:"wayfinder", created:"2026-08-12", claude:0, codex:45, kiro:0, total:45},
+  {cat:"mattpocock", skill:"wizard", created:"2026-09-09", claude:0, codex:0, kiro:0, total:0},
+  {cat:"mattpocock", skill:"writing-beats", created:"2026-09-09", claude:0, codex:0, kiro:0, total:0},
+  {cat:"mattpocock", skill:"writing-for-agents", created:"2026-08-12", claude:4, codex:1190, kiro:0, total:1194},
+  {cat:"mattpocock", skill:"writing-fragments", created:"2026-09-09", claude:0, codex:0, kiro:0, total:0},
+  {cat:"mattpocock", skill:"writing-shape", created:"2026-09-09", claude:0, codex:0, kiro:0, total:0},
+  {cat:"QA", skill:"qa-regression-scope", created:"2026-06-17", claude:0, codex:0, kiro:0, total:0},
+  {cat:"QA", skill:"webapp-testing", created:"2026-09-01", claude:0, codex:2, kiro:0, total:2},
+  {cat:"writing", skill:"frontend-slides", created:"2026-08-17", claude:0, codex:7, kiro:0, total:7},
+];
+
+data.forEach(d => { d.scope = "focus"; });
+globalData.forEach(d => { d.scope = "global"; });
+data.push(...globalData);
+
+data.forEach(d => { d.tooNew = d.created > CUTOFF; });
+
+const maxTotal = Math.max(...data.map(d => d.total));
+
+function statusOf(d) {
+  if (d.total === 0 && d.tooNew) return {label: "太新", cls: "badge-new"};
+  if (d.total === 0) return {label: "零命中", cls: "badge-zero"};
+  if (d.total <= 20) return {label: "低频", cls: "badge-low"};
+  return {label: "活跃", cls: "badge-active"};
+}
+
+function daysBetween(a, b) {
+  const d1 = new Date(a);
+  const d2 = new Date(b);
+  return Math.round((d2 - d1) / 86400000);
+}
+
+function renderZeroGrid(scope) {
+  const pool = scope === "all" ? data : data.filter(d => d.scope === scope);
+  const idle = pool.filter(d => d.total === 0 && !d.tooNew);
+  const tooNew = pool.filter(d => d.total === 0 && d.tooNew);
+
+  document.getElementById("idle-count").textContent = idle.length;
+  document.getElementById("new-count").textContent = tooNew.length;
+
+  const grid = document.getElementById("zero-grid");
+  grid.innerHTML = idle.map(d => `
+    <div class="zero-card">
+      <div class="zero-name">${d.skill}</div>
+      <div class="zero-tag">${d.cat} · created ${d.created}</div>
+    </div>
+  `).join("");
+
+  const newGrid = document.getElementById("toonew-grid");
+  if (newGrid) {
+    newGrid.innerHTML = tooNew.map(d => `
+      <div class="zero-card new-card">
+        <div class="zero-name">${d.skill}</div>
+        <div class="zero-tag">${d.cat} · created ${d.created}（存在 ${daysBetween(d.created, "2026-09-12")} 天，未满30天）</div>
+      </div>
+    `).join("");
+  }
+}
+
+function renderTable(filter, scope) {
+  let rows = scope === "all" ? [...data] : data.filter(d => d.scope === scope);
+  rows = rows.sort((a, b) => b.total - a.total);
+  if (filter === "zero") rows = rows.filter(d => d.total === 0 && !d.tooNew);
+  else if (filter === "new") rows = rows.filter(d => d.total === 0 && d.tooNew);
+  else if (filter === "low") rows = rows.filter(d => d.total > 0 && d.total <= 20);
+  else if (filter === "active") rows = rows.filter(d => d.total > 20);
+
+  const body = document.getElementById("matrix-body");
+  body.innerHTML = rows.map(d => {
+    const st = statusOf(d);
+    const pct = maxTotal > 0 ? Math.max(2, (d.total / maxTotal) * 100) : 0;
+    return `
+      <tr class="${d.total === 0 && !d.tooNew ? 'zero-row' : ''} ${d.tooNew ? 'new-row' : ''}">
+        <td class="skill-name">${d.skill}</td>
+        <td class="cat-tag">${d.cat}${d.scope === 'global' ? ' <span style=\"opacity:.5\">· global</span>' : ''}</td>
+        <td class="cat-tag">${d.created}</td>
+        <td class="num">${d.claude}</td>
+        <td class="num">${d.codex}</td>
+        <td class="num">${d.kiro}</td>
+        <td class="num total-num">${d.total}<span class="bar-track"><span class="bar-fill" style="width:${pct}%"></span></span></td>
+        <td><span class="badge ${st.cls}">${st.label}</span></td>
+      </tr>
+    `;
+  }).join("");
+}
+
+let currentScope = "all";
+let currentFilter = "all";
+
+renderZeroGrid(currentScope);
+renderTable(currentFilter, currentScope);
+
+document.querySelectorAll(".filter-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentFilter = btn.dataset.filter;
+    renderTable(currentFilter, currentScope);
+  });
+});
+
+document.querySelectorAll(".scope-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".scope-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentScope = btn.dataset.scope;
+    renderZeroGrid(currentScope);
+    renderTable(currentFilter, currentScope);
+  });
+});
+</script>
+
+</body>
+</html>
