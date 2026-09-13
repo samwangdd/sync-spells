@@ -41,6 +41,10 @@ export class ResolveService {
       .filter((s: string) => !s.startsWith('global/') && !s.startsWith('inbox/'));
 
     const excludes = new Set((profile.excludes || []).map(s => s.trim()).filter(Boolean));
+    for (const entry of profile.dormantExcludes || []) {
+      const trimmed = entry.skill.trim();
+      if (trimmed) excludes.add(trimmed);
+    }
     const ordered = [...sources.extends, ...sources.categories, ...sources.extras, ...sources.legacy]
       .filter((s: string) => !excludes.has(s))
       .filter((s: string) => !s.startsWith('global/') && !s.startsWith('inbox/'));

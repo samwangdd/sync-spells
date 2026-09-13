@@ -25,6 +25,9 @@ describe('ResolveService', () => {
       JSON.stringify({ name:'parked', categories:['coding','inbox'], extras:['inbox/debug-5'] }));
     await fs.writeFile(path.join(dir,'profiles','without-web-perf.json'),
       JSON.stringify({ name:'without-web-perf', categories:['coding'], excludes:['coding/web-perf'] }));
+    await fs.writeFile(path.join(dir,'profiles','dormant-web-perf.json'),
+      JSON.stringify({ name:'dormant-web-perf', categories:['coding'],
+        dormantExcludes:[{ skill:'coding/web-perf', since:'2026-09-01', window:30, hits:0 }] }));
     cfg = { source: dir, tools: {}, profilesDir: path.join(dir,'profiles') };
   });
   afterEach(async () => { await fs.rm(dir, { recursive: true, force: true }); });
@@ -50,6 +53,10 @@ describe('ResolveService', () => {
   });
   it('removes excluded skills from category resolution', async () => {
     const r = await mk().resolve('without-web-perf');
+    expect(r.skills).toEqual(['coding/scss']);
+  });
+  it('removes dormant-excluded skills the same way as excludes', async () => {
+    const r = await mk().resolve('dormant-web-perf');
     expect(r.skills).toEqual(['coding/scss']);
   });
   it('throws on circular extends', async () => {

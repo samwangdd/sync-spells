@@ -7,6 +7,7 @@ const profile = (name: string, boundPaths: string[]): ProfileView => ({
   categories: [],
   extras: [],
   excludes: [],
+  dormantExcludes: [],
   skills: [],
   resolvedRefs: [],
   skillCount: 0,

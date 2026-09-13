@@ -5,7 +5,7 @@ import { Profile } from '../types';
 import { ProfileService } from '../services/ProfileService';
 import { resolveRecipe } from '../shared/resolveRecipe';
 import { parseFrontmatter } from './frontmatter';
-import { AppState, ProfileView, SkillCard, CategoryView, RemoveSkillResult } from '../shared/contract';
+import { AppState, ProfileView, SkillCard, CategoryView, RemoveSkillResult, DormantExclude } from '../shared/contract';
 
 export const buildProfileView = (
   profile: Profile,
@@ -17,6 +17,7 @@ export const buildProfileView = (
     categories: profile.categories ?? [],
     extras: profile.extras ?? [],
     excludes: (profile as { excludes?: string[] }).excludes ?? [],
+    dormantExcludes: (profile as { dormantExcludes?: DormantExclude[] }).dormantExcludes ?? [],
   };
   const resolvedRefs = resolveRecipe(recipe, catalogByCategory);
   return {
@@ -24,6 +25,7 @@ export const buildProfileView = (
     categories: recipe.categories,
     extras: recipe.extras,
     excludes: recipe.excludes,
+    dormantExcludes: recipe.dormantExcludes,
     skills: recipe.skills,
     resolvedRefs,
     skillCount: resolvedRefs.length,

@@ -157,7 +157,7 @@ export const ScenesView: React.FC<{
         </div>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <RecipeEditor
-            categories={draft.categories} extras={draft.extras} excludes={draft.excludes} boundPaths={draft.boundPaths}
+            categories={draft.categories} extras={draft.extras} excludes={draft.excludes} dormantExcludes={draft.dormantExcludes} boundPaths={draft.boundPaths}
             allCategories={allCategories} allRefs={allRefs}
             onChange={(patch) => { setDraft({ ...draft, ...patch }); setDirty(true); }}
           />

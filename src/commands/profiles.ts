@@ -73,6 +73,12 @@ export const registerProfiles = (program: Command, getConfig: () => Promise<Conf
       if (profile.excludes?.length) {
         console.log(`Excludes: ${profile.excludes.join(', ')}`);
       }
+      if (profile.dormantExcludes?.length) {
+        console.log('Dormant excludes (idle-audit):');
+        for (const entry of profile.dormantExcludes) {
+          console.log(`  - ${entry.skill}  (since ${entry.since}, ${entry.hits} hits / ${entry.window}d window)`);
+        }
+      }
 
       const skills = resolved?.skills ?? profile.skills ?? [];
       console.log(`\nSkills (${skills.length}, resolved):`);

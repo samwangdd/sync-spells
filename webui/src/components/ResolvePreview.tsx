@@ -3,7 +3,7 @@ import { resolveRecipe } from '@shared/resolveRecipe';
 import type { ProfileRecipe } from '@shared/contract';
 
 export const ResolvePreview: React.FC<{
-  recipe: Pick<ProfileRecipe, 'categories' | 'extras' | 'excludes' | 'skills'>;
+  recipe: Pick<ProfileRecipe, 'categories' | 'extras' | 'excludes' | 'dormantExcludes' | 'skills'>;
   catalogByCategory: Record<string, string[]>;
 }> = ({ recipe, catalogByCategory }) => {
   const resolved = useMemo(() => resolveRecipe(recipe, catalogByCategory), [recipe, catalogByCategory]);

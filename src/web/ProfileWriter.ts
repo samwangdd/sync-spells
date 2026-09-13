@@ -36,6 +36,9 @@ export class ProfileWriter {
     for (const ref of [...(recipe.skills ?? []), ...(recipe.extras ?? []), ...(recipe.excludes ?? [])]) {
       if (!knownRefs.has(ref.trim())) throw new ProfileValidationError(`Unknown skill ref: ${ref}`);
     }
+    for (const entry of recipe.dormantExcludes ?? []) {
+      if (!knownRefs.has(entry.skill.trim())) throw new ProfileValidationError(`Unknown skill ref: ${entry.skill}`);
+    }
 
     const profilesDir = this.config.profilesDir || path.join(this.config.source, 'profiles');
     const filePath = path.join(profilesDir, `${name}.json`);
@@ -44,7 +47,7 @@ export class ProfileWriter {
     if (existing) await backupPath(filePath);
 
     const output: Record<string, unknown> = { ...existing, name: recipe.name };
-    const setOrDelete = (key: 'categories' | 'extras' | 'excludes' | 'skills') => {
+    const setOrDelete = (key: 'categories' | 'extras' | 'excludes' | 'dormantExcludes' | 'skills') => {
       const value = recipe[key];
       if (value && value.length > 0) output[key] = value;
       else delete output[key];
@@ -52,6 +55,7 @@ export class ProfileWriter {
     setOrDelete('categories');
     setOrDelete('extras');
     setOrDelete('excludes');
+    setOrDelete('dormantExcludes');
     setOrDelete('skills');
 
     await fs.mkdir(profilesDir, { recursive: true });
@@ -74,7 +78,7 @@ export class ProfileWriter {
 
     return buildProfileView(
       { name: recipe.name, categories: recipe.categories, extras: recipe.extras, skills: recipe.skills,
-        ...({ excludes: recipe.excludes } as object) },
+        ...({ excludes: recipe.excludes, dormantExcludes: recipe.dormantExcludes } as object) },
       catalogByCategory,
       this.config.projectBindings ?? [],
     );

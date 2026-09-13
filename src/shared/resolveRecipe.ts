@@ -1,6 +1,6 @@
 import type { ProfileRecipe } from './contract';
 
-type RecipeInput = Pick<ProfileRecipe, 'categories' | 'extras' | 'excludes' | 'skills'>;
+type RecipeInput = Pick<ProfileRecipe, 'categories' | 'extras' | 'excludes' | 'dormantExcludes' | 'skills'>;
 
 /**
  * Mirrors scripts/materialize-profile.sh resolution: skills[] (raw) -> each
@@ -8,6 +8,11 @@ type RecipeInput = Pick<ProfileRecipe, 'categories' | 'extras' | 'excludes' | 's
  * key is absent) -> extras[]; then excludes removed and order-preserving dedup
  * by full ref. catalogByCategory keys MUST include every existing category
  * (even empty ones); values MUST already be sorted.
+ *
+ * `excludes` (standing human decision) and `dormantExcludes` (idle-audit
+ * record, `{skill, since, window, hits}`) have an identical exclusion effect
+ * here — only their provenance and lifecycle differ, which lives in the
+ * profile JSON, not in resolution.
  */
 export function resolveRecipe(
   recipe: RecipeInput,
@@ -36,6 +41,10 @@ export function resolveRecipe(
   const excludes = new Set(
     (recipe.excludes ?? []).map((ref) => ref.trim()).filter(Boolean),
   );
+  for (const entry of recipe.dormantExcludes ?? []) {
+    const trimmed = entry.skill.trim();
+    if (trimmed) excludes.add(trimmed);
+  }
   const seen = new Set<string>();
   const resolved: string[] = [];
   for (const ref of refs) {

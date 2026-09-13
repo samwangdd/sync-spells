@@ -7,6 +7,7 @@ const profile = (name: string): ProfileView => ({
   categories: [],
   extras: [],
   excludes: [],
+  dormantExcludes: [],
   skills: [],
   resolvedRefs: [],
   skillCount: 0,
@@ -20,6 +21,7 @@ describe('createSceneDraft', () => {
       categories: [],
       extras: [],
       excludes: [],
+      dormantExcludes: [],
       skills: [],
       boundPaths: [],
     });

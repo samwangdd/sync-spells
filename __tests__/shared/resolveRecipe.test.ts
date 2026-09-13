@@ -23,6 +23,24 @@ describe('resolveRecipe', () => {
       .toEqual(['coding/git-commit', 'coding/scss', 'coding/web-perf', 'workflow/task-run']);
   });
 
+  it('removes dormant-excluded refs the same way as excludes', () => {
+    expect(resolveRecipe(
+      { categories: ['coding', 'workflow'], dormantExcludes: [{ skill: 'workflow/jira-handoff', since: '2026-09-01', window: 30, hits: 0 }] },
+      catalog,
+    )).toEqual(['coding/git-commit', 'coding/scss', 'coding/web-perf', 'workflow/task-run']);
+  });
+
+  it('unions excludes and dormantExcludes without double-removal side effects', () => {
+    expect(resolveRecipe(
+      {
+        categories: ['coding', 'workflow'],
+        excludes: ['workflow/jira-handoff'],
+        dormantExcludes: [{ skill: 'coding/git-commit', since: '2026-09-01', window: 30, hits: 0 }],
+      },
+      catalog,
+    )).toEqual(['coding/scss', 'coding/web-perf', 'workflow/task-run']);
+  });
+
   it('puts raw skills[] first, in order', () => {
     expect(resolveRecipe({ skills: ['coding/web-perf'], categories: ['coding'] }, catalog))
       .toEqual(['coding/web-perf', 'coding/git-commit', 'coding/scss']);

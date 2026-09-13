@@ -1,10 +1,25 @@
 import { z } from 'zod';
 
+export const DormantExcludeSchema = z.object({
+  skill: z.string().min(1),
+  since: z.string().min(1),
+  window: z.number().int().positive(),
+  hits: z.number().int().nonnegative(),
+});
+export type DormantExclude = z.infer<typeof DormantExcludeSchema>;
+
 export const ProfileRecipeSchema = z.object({
   name: z.string().min(1),
   categories: z.array(z.string()).optional(),
   extras: z.array(z.string()).optional(),
   excludes: z.array(z.string()).optional(),
+  /**
+   * Idle-audit-sourced exclusions. Same exclusion effect as `excludes` when
+   * resolving, but distinct provenance (audit-written, per-profile human
+   * confirmed, revocable) — never merge these into `excludes` in code paths
+   * that read/write profile JSON, only in the resolved-skills output.
+   */
+  dormantExcludes: z.array(DormantExcludeSchema).optional(),
   skills: z.array(z.string()).optional(),
   boundPaths: z.array(z.string()).optional(),
 });
@@ -26,6 +41,7 @@ export const ProfileViewSchema = z.object({
   categories: z.array(z.string()),
   extras: z.array(z.string()),
   excludes: z.array(z.string()),
+  dormantExcludes: z.array(DormantExcludeSchema),
   skills: z.array(z.string()),
   resolvedRefs: z.array(z.string()),
   skillCount: z.number(),

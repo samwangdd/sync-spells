@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import type { DormantExclude } from '@shared/contract';
 
 const fieldCopy = {
   categories: {
@@ -55,14 +56,29 @@ const ListEditor: React.FC<{ field: FieldKey; items: string[]; onChange: (next: 
   };
 
 export const RecipeEditor: React.FC<{
-  categories: string[]; extras: string[]; excludes: string[]; boundPaths?: string[];
+  categories: string[]; extras: string[]; excludes: string[]; dormantExcludes?: DormantExclude[]; boundPaths?: string[];
   allCategories: string[]; allRefs: string[];
   onChange: (patch: { categories?: string[]; extras?: string[]; excludes?: string[]; boundPaths?: string[] }) => void;
-}> = ({ categories, extras, excludes, boundPaths, allCategories, allRefs, onChange }) => (
+}> = ({ categories, extras, excludes, dormantExcludes, boundPaths, allCategories, allRefs, onChange }) => (
   <div className="flex flex-col gap-3">
     <ListEditor field="categories" items={categories} suggestions={allCategories} onChange={(v) => onChange({ categories: v })} />
     <ListEditor field="extras" items={extras} suggestions={allRefs} onChange={(v) => onChange({ extras: v })} />
     <ListEditor field="excludes" items={excludes} suggestions={allRefs} onChange={(v) => onChange({ excludes: v })} />
+    {dormantExcludes && dormantExcludes.length > 0 && (
+      <div className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--panel)] p-4">
+        <h4 className="text-sm font-semibold">闲置排除（dormantExcludes）</h4>
+        <p className="mb-3 mt-1 text-xs leading-5 text-[var(--fg-dim)]">
+          由闲置审计写入，只读展示。移出需人工确认，请编辑 profile JSON 或走审计工具，不在此表单直接改动。
+        </p>
+        <div className="flex flex-col gap-1.5">
+          {dormantExcludes.map((entry) => (
+            <div key={entry.skill} className="rounded-[var(--radius-s)] bg-[var(--code)] px-2 py-1 text-xs" style={{ fontFamily: 'var(--font-mono)' }}>
+              {entry.skill} <span className="text-[var(--fg-mute)]">— since {entry.since}, {entry.hits} hits / {entry.window}d</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
     {boundPaths && <ListEditor field="boundPaths" items={boundPaths} onChange={(v) => onChange({ boundPaths: v })} />}
   </div>
 );

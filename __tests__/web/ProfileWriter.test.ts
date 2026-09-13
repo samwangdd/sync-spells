@@ -62,6 +62,26 @@ describe('ProfileWriter', () => {
     expect(backups.length).toBeGreaterThan(0);
   });
 
+  it('rejects an unknown dormantExcludes ref (no write)', async () => {
+    const { ProfileWriter, ProfileValidationError } = load(home);
+    await expect(new ProfileWriter(cfg).write('code', {
+      name: 'code',
+      dormantExcludes: [{ skill: 'workflow/ghost', since: '2026-09-01', window: 30, hits: 0 }],
+    })).rejects.toBeInstanceOf(ProfileValidationError);
+  });
+
+  it('writes dormantExcludes and applies the same exclusion effect as excludes', async () => {
+    const { ProfileWriter } = load(home);
+    const view = await new ProfileWriter(cfg).write('code', {
+      name: 'code', categories: ['coding'],
+      dormantExcludes: [{ skill: 'coding/scss', since: '2026-09-01', window: 30, hits: 0 }],
+    });
+    expect(view.resolvedRefs).toEqual(['coding/git-commit']);
+    expect(view.dormantExcludes).toEqual([{ skill: 'coding/scss', since: '2026-09-01', window: 30, hits: 0 }]);
+    const written = JSON.parse(await fs.readFile(path.join(dir, 'profiles', 'code.json'), 'utf8'));
+    expect(written.dormantExcludes).toEqual([{ skill: 'coding/scss', since: '2026-09-01', window: 30, hits: 0 }]);
+  });
+
   it('writes 2-space JSON with trailing newline and omits empty arrays', async () => {
     const { ProfileWriter } = load(home);
     await new ProfileWriter(cfg).write('code', { name: 'code', categories: ['coding'], extras: [], excludes: [] });

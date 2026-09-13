@@ -7,6 +7,7 @@ const profile: ProfileView = {
   categories: ['coding'],
   extras: ['workflow/task-run'],
   excludes: ['coding/scss'],
+  dormantExcludes: [{ skill: 'coding/tdd', since: '2026-09-01', window: 30, hits: 0 }],
   skills: [],
   resolvedRefs: [],
   skillCount: 0,
@@ -20,6 +21,7 @@ describe('profileDraft', () => {
       categories: [],
       extras: [],
       excludes: [],
+      dormantExcludes: [],
       skills: [],
       boundPaths: [],
     });
@@ -31,6 +33,7 @@ describe('profileDraft', () => {
       categories: ['coding'],
       extras: ['workflow/task-run'],
       excludes: ['coding/scss'],
+      dormantExcludes: [{ skill: 'coding/tdd', since: '2026-09-01', window: 30, hits: 0 }],
       skills: [],
       boundPaths: [],
     });

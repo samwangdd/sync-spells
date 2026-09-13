@@ -31,6 +31,7 @@ describe('contract schemas', () => {
   it('ProfileViewSchema parses a full view', () => {
     const v = ProfileViewSchema.parse({
       name: 'all', categories: ['coding'], extras: [], excludes: ['workflow/jira-handoff'],
+      dormantExcludes: [{ skill: 'coding/scss', since: '2026-09-01', window: 30, hits: 0 }],
       skills: [], resolvedRefs: ['coding/git-commit'], skillCount: 1, boundPaths: [],
     });
     expect(v.skillCount).toBe(1);

@@ -68,6 +68,18 @@ describe('SkillCatalogService', () => {
     expect(jira?.inProfiles).toEqual([]); // excluded from 'all', not in 'code'
   });
 
+  it('computes inProfiles by resolved membership (dormantExcludes respected same as excludes)', async () => {
+    await fs.writeFile(path.join(dir, 'profiles', 'dormant.json'), JSON.stringify({
+      name: 'dormant', categories: ['coding'],
+      dormantExcludes: [{ skill: 'coding/scss', since: '2026-09-01', window: 30, hits: 0 }],
+    }));
+    const state = await new SkillCatalogService(cfg).getState();
+    const dormant = state.profiles.find((p) => p.name === 'dormant')!;
+    expect(dormant.resolvedRefs).toEqual(['coding/git-commit']);
+    const scss = state.skills.find((s) => s.ref === 'coding/scss');
+    expect(scss?.inProfiles).not.toContain('dormant');
+  });
+
   it('builds profile views with resolvedRefs, skillCount and boundPaths', async () => {
     const state = await new SkillCatalogService(cfg).getState();
     const all = state.profiles.find((p) => p.name === 'all')!;

@@ -5,7 +5,7 @@ import * as http from 'http';
 
 const sampleState: AppState = { profiles: [], skills: [], categories: [] };
 const sampleView: ProfileView = {
-  name: 'code', categories: ['coding'], extras: [], excludes: [], skills: [],
+  name: 'code', categories: ['coding'], extras: [], excludes: [], dormantExcludes: [], skills: [],
   resolvedRefs: ['coding/git-commit'], skillCount: 1, boundPaths: [],
 };
 

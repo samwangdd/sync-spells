@@ -1,12 +1,13 @@
 import type { ProfileRecipe, ProfileView } from './contract';
 
-export type ProfileDraft = Required<Pick<ProfileRecipe, 'name' | 'categories' | 'extras' | 'excludes' | 'skills' | 'boundPaths'>>;
+export type ProfileDraft = Required<Pick<ProfileRecipe, 'name' | 'categories' | 'extras' | 'excludes' | 'dormantExcludes' | 'skills' | 'boundPaths'>>;
 
 export const createEmptyProfileDraft = (): ProfileDraft => ({
   name: '',
   categories: [],
   extras: [],
   excludes: [],
+  dormantExcludes: [],
   skills: [],
   boundPaths: [],
 });
@@ -16,6 +17,7 @@ export const profileToDraft = (profile: ProfileView): ProfileDraft => ({
   categories: [...profile.categories],
   extras: [...profile.extras],
   excludes: [...profile.excludes],
+  dormantExcludes: profile.dormantExcludes.map((entry) => ({ ...entry })),
   skills: [...profile.skills],
   boundPaths: [...profile.boundPaths],
 });
